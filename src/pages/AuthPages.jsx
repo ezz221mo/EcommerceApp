@@ -303,18 +303,18 @@ export function RegisterPage() {
               <label className="flex items-start gap-3 cursor-pointer select-none">
                 <input type="checkbox" checked={form.terms} onChange={handleChange('terms')} className="w-4 h-4 mt-0.5 rounded accent-orange-500 cursor-pointer" />
                 <span className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-orange-500 hover:underline font-medium">Terms of Service</Link>
+                  I have read and agree to the{' '}
+                  <Link to="/privacy-policy" className="text-orange-500 hover:underline font-medium">Privacy Policy</Link>
                   {' '}and{' '}
-                  <Link to="/privacy" className="text-orange-500 hover:underline font-medium">Privacy Policy</Link>
+                  <Link to="/terms-and-conditions" className="text-orange-500 hover:underline font-medium">Terms & Conditions</Link>
                 </span>
               </label>
               <AnimatePresence mode="wait">{errors.terms && <FieldError key="t" msg={errors.terms} />}</AnimatePresence>
             </div>
 
             <motion.button
-              type="submit" disabled={submitting}
-              whileHover={!submitting ? { scale: 1.01 } : {}} whileTap={!submitting ? { scale: 0.99 } : {}}
+              type="submit" disabled={submitting || !form.terms}
+              whileHover={!submitting && form.terms ? { scale: 1.01 } : {}} whileTap={!submitting && form.terms ? { scale: 0.99 } : {}}
               className="btn-primary w-full py-4 text-base justify-center mt-2"
             >
               {submitting ? <><Spinner /> Creating account…</> : 'Create Buyer Account'}

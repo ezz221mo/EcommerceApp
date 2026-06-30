@@ -17,18 +17,18 @@ import ProtectedRoute from './components/ui/ProtectedRoute';
 import SellerDashboardPage from './pages/SellerDashboardPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ScrollToTop from './components/ui/ScrollToTop';
-// ✅ استيراد الصفحات الجديدة
 import AboutPage from './pages/AboutPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 
+const pageVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
+  exit:    { opacity: 0, y: -8, transition: { duration: 0.15 } },
+};
+
 const PageWrapper = ({ children }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -8 }}
-    transition={{ duration: 0.25 }}
-  >
+  <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
     {children}
   </motion.div>
 );
@@ -38,63 +38,46 @@ function AppRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-
-        {/* Public routes */}
         <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
         <Route path="/products" element={<PageWrapper><ProductsPage /></PageWrapper>} />
         <Route path="/products/:id" element={<PageWrapper><ProductDetailPage /></PageWrapper>} />
         <Route path="/login" element={<PageWrapper><LoginPage /></PageWrapper>} />
         <Route path="/register" element={<PageWrapper><RegisterPage /></PageWrapper>} />
 
-        {/* ✅ Public Info Pages */}
         <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />
         <Route path="/terms" element={<PageWrapper><TermsPage /></PageWrapper>} />
+        <Route path="/terms-and-conditions" element={<PageWrapper><TermsPage /></PageWrapper>} />
         <Route path="/privacy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
+        <Route path="/privacy-policy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
 
-        {/* Protected routes — must be logged in */}
         <Route path="/cart" element={
-          <ProtectedRoute>
-            <PageWrapper><CartPage /></PageWrapper>
-          </ProtectedRoute>
+          <ProtectedRoute><PageWrapper><CartPage /></PageWrapper></ProtectedRoute>
         } />
         
         <Route path="/checkout" element={
-          <ProtectedRoute>
-            <PageWrapper><CheckoutPage /></PageWrapper>
-          </ProtectedRoute>
+          <ProtectedRoute><PageWrapper><CheckoutPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/profile" element={
-          <ProtectedRoute>
-            <PageWrapper><ProfilePage /></PageWrapper>
-          </ProtectedRoute>
+          <ProtectedRoute><PageWrapper><ProfilePage /></PageWrapper></ProtectedRoute>
         } />
         
         <Route path="/wishlist" element={
-          <ProtectedRoute role="buyer">
-            <PageWrapper><WishlistPage /></PageWrapper>
-          </ProtectedRoute>
+          <ProtectedRoute role="buyer"><PageWrapper><WishlistPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/seller/dashboard" element={
-          <ProtectedRoute role="seller">
-            <PageWrapper><SellerDashboardPage /></PageWrapper>
-          </ProtectedRoute>
+          <ProtectedRoute role="seller"><PageWrapper><SellerDashboardPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/profile/edit" element={
-          <ProtectedRoute>
-            <PageWrapper><EditProfilePage /></PageWrapper>
-          </ProtectedRoute>
+          <ProtectedRoute><PageWrapper><EditProfilePage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/orders/my-orders" element={
-          <ProtectedRoute>
-            <PageWrapper><OrdersPage /></PageWrapper>
-          </ProtectedRoute>
+          <ProtectedRoute><PageWrapper><OrdersPage /></PageWrapper></ProtectedRoute>
         } />
 
-        {/* 404 */}
         <Route path="*" element={
           <PageWrapper>
             <div className="min-h-screen pt-20 flex items-center justify-center px-4">
@@ -121,7 +104,6 @@ function AppRoutes() {
             </div>
           </PageWrapper>
         } />
-
       </Routes>
     </AnimatePresence>
   );
@@ -135,12 +117,10 @@ function AppContent() {
   const setLastPath = useRouteStore(s => s.setLastPath);
   const lastPath = useRouteStore(s => s.lastPath);
 
-  // ✅ حفظ الصفحة الحالية في الـ localStorage مع كل تنقل
   useEffect(() => {
     setLastPath(location.pathname);
   }, [location.pathname]);
 
-  // ✅ استعادة الصفحة الأخيرة عند فتح الموقع أو عمل Refresh
   useEffect(() => {
     if (window.location.pathname === '/' && lastPath && lastPath !== '/') {
       navigate(lastPath, { replace: true });

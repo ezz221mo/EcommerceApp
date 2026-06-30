@@ -18,25 +18,20 @@ export default function ProductCard({ product, index = 0 }) {
   const inCart     = isInCart(product.id);
   const wishlisted = isWishlisted(product.id);
 
-  // ── Cart toggle ──────────────────────────────────────────────────────────
-  // First click  → addItem(product, 1, false) → adds 1 unit
-  // Second click → addItem(product, 1, true)  → toggle=true → store removes it
   const handleCartToggle = (e) => {
     e.preventDefault();
     if (!product.inStock || isSeller) return;
 
     if (inCart) {
-      // Pass toggle=true → store will remove the item
       addItem(product, 1, true);
       toast('Removed from cart', {
-        icon: '🗑️',
+        icon: '\u{1F5D1}\uFE0F',
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
     } else {
-      // First click — add with toggle=false so it doesn't accidentally remove
       addItem(product, 1, false);
       toast.success(`${product.name} added to cart!`, {
-        icon: '🛒',
+        icon: '\u{1F6D2}',
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
     }
@@ -46,7 +41,7 @@ export default function ProductCard({ product, index = 0 }) {
     e.preventDefault();
     toggleItem(product);
     toast(wishlisted ? 'Removed from wishlist' : 'Added to wishlist!', {
-      icon: wishlisted ? '💔' : '❤️',
+      icon: wishlisted ? '\u{1F494}' : '\u2764\uFE0F',
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
   };
@@ -57,60 +52,89 @@ export default function ProductCard({ product, index = 0 }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.4 }}
-      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 80, damping: 13, delay: index * 0.04 }}
+      whileHover={{ y: -6 }}
       className="group"
     >
       <Link to={`/products/${product.id}`} className="block">
-        <div className="card overflow-hidden hover:shadow-xl hover:shadow-stone-200/60 dark:hover:shadow-stone-900/60 transition-all duration-300">
-
+        <motion.div
+          whileHover={{ boxShadow: '0 20px 50px rgba(0,0,0,0.12)' }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+          className="card overflow-hidden hover:shadow-xl hover:shadow-stone-200/60 dark:hover:shadow-stone-900/60 transition-shadow duration-300"
+        >
           {/* Image */}
           <div className="relative overflow-hidden bg-stone-100 dark:bg-stone-800 aspect-square">
-            <img
+            <motion.img
               src={product.image || 'https://placehold.co/400x400?text=No+Image'}
               alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              whileHover={{ scale: 1.08 }}
+              transition={{ type: 'spring', stiffness: 150, damping: 12 }}
+              className="w-full h-full object-cover"
               loading="lazy"
             />
 
             {/* Badges */}
             <div className="absolute top-3 left-3 flex flex-col gap-1.5">
               {product.badge && (
-                <span className={`badge text-white text-xs ${
-                  product.badge === 'Sale'        ? 'bg-rose-500'  :
-                  product.badge === 'New'         ? 'bg-teal-500'  :
-                  product.badge === 'Best Seller' ? 'bg-amber-500' :
-                  'bg-orange-500'
-                }`}>{product.badge}</span>
+                <motion.span
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.04 + 0.1 }}
+                  className={`badge text-white text-xs ${
+                    product.badge === 'Sale'        ? 'bg-rose-500'  :
+                    product.badge === 'New'         ? 'bg-teal-500'  :
+                    product.badge === 'Best Seller' ? 'bg-amber-500' :
+                    'bg-orange-500'
+                  }`}
+                >
+                  {product.badge === 'Sale' && discount ? `Sale -${discount}%` : product.badge}
+                </motion.span>
               )}
-              {discount && (
-                <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400">
+              {discount && !product.badge && (
+                <motion.span
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.04 + 0.15 }}
+                  className="badge bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400"
+                >
                   -{discount}%
-                </span>
+                </motion.span>
               )}
             </div>
 
-            {/* Wishlist — buyers only */}
+            {/* Wishlist — always visible on mobile, hover-reveal on desktop */}
             {!isSeller && (
-              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <button
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.04 + 0.2 }}
+                className="absolute top-3 right-3 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200"
+              >
+                <motion.button
                   onClick={handleWishlist}
-                  className="w-8 h-8 bg-white dark:bg-stone-800 rounded-lg shadow flex items-center justify-center hover:scale-110 transition-transform"
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.85 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 8 }}
+                  className="w-8 h-8 bg-white dark:bg-stone-800 rounded-lg shadow flex items-center justify-center"
                 >
                   {wishlisted
                     ? <HiHeart className="w-4 h-4 text-rose-500" />
                     : <HiOutlineHeart className="w-4 h-4 text-stone-600" />}
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
             )}
 
             {/* In-cart badge */}
             {inCart && !isSeller && (
-              <div className="absolute bottom-3 left-3">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="absolute bottom-3 left-3"
+              >
                 <span className="badge bg-orange-500 text-white text-xs">In Cart</span>
-              </div>
+              </motion.div>
             )}
 
             {/* Out of stock overlay */}
@@ -136,9 +160,16 @@ export default function ProductCard({ product, index = 0 }) {
             <div className="flex items-center gap-1.5 mb-3">
               <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
-                  <HiStar key={i} className={`w-3.5 h-3.5 ${
-                    i < Math.floor(product.rating) ? 'text-amber-400' : 'text-stone-200 dark:text-stone-700'
-                  }`} />
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.04 + i * 0.03 }}
+                  >
+                    <HiStar className={`w-3.5 h-3.5 ${
+                      i < Math.floor(product.rating) ? 'text-amber-400' : 'text-stone-200 dark:text-stone-700'
+                    }`} />
+                  </motion.div>
                 ))}
               </div>
               <span className="text-xs text-stone-500 dark:text-stone-400">
@@ -163,10 +194,12 @@ export default function ProductCard({ product, index = 0 }) {
                 <motion.button
                   onClick={handleCartToggle}
                   disabled={!product.inStock}
-                  whileTap={{ scale: 0.88 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.85 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 8 }}
                   title={inCart ? 'Remove from cart' : 'Add to cart'}
                   className={`w-9 h-9 rounded-xl flex items-center justify-center text-white
-                              transition-all duration-200 hover:scale-110 active:scale-95
+                              transition-all duration-200
                               shadow-lg disabled:shadow-none
                               ${inCart
                                 ? 'bg-stone-700 hover:bg-rose-600 shadow-stone-700/25'
@@ -181,7 +214,7 @@ export default function ProductCard({ product, index = 0 }) {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       </Link>
     </motion.div>
   );

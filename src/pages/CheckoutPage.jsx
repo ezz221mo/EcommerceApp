@@ -1,18 +1,27 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { HiOutlineClipboardCheck, HiOutlineArrowLeft, HiOutlineLockClosed } from 'react-icons/hi';
+import { HiOutlineClipboardCheck, HiOutlineArrowLeft, HiOutlineLockClosed, HiOutlineTruck, HiOutlineCreditCard, HiOutlineCheckCircle, HiOutlineShieldCheck } from 'react-icons/hi';
 import { useCartStore, useOrderStore } from '../store';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
+
+const steps = [
+  { key: 'shipping', label: 'Shipping', icon: HiOutlineTruck },
+  { key: 'payment', label: 'Payment', icon: HiOutlineCreditCard },
+  { key: 'review', label: 'Review', icon: HiOutlineCheckCircle },
+];
+
+const spring = { type: 'spring', stiffness: 150, damping: 18 };
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, clearCart } = useCartStore();
   const { userData } = useAuth();
   const { placeOrder } = useOrderStore();
-  
+
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState('shipping');
   const [form, setForm] = useState({
     fullName: userData?.name || '',
     email: userData?.email || '',
@@ -21,7 +30,7 @@ export default function CheckoutPage() {
     zip: '',
     cardNumber: '',
     expiry: '',
-    cvv: ''
+    cvv: '',
   });
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -39,39 +48,33 @@ export default function CheckoutPage() {
     }
 
     setLoading(true);
-    
-    // محاكاة تأخير الشبكة
     await new Promise(r => setTimeout(r, 1500));
 
-    // تجهيز المنتجات مع إضافة الـ sellerEmail لكل منتج
     const orderItems = items.map(item => ({
       id: item.id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
       image: item.image,
-      sellerEmail: item.sellerEmail || 'admin@luxe.com'
+      sellerEmail: item.sellerEmail || 'admin@luxe.com',
     }));
 
-    // حفظ الأوردر في الـ Store والـ localStorage
     placeOrder({
       buyerEmail: userData.email,
       items: orderItems,
       subtotal,
       shipping,
       tax,
-      total
+      total,
     });
 
-    // تفريغ السلة
     clearCart();
     setLoading(false);
 
-    // رسالة نجاح وتوجيه لصفحة الطلبات
     toast.success('Your order has been placed successfully. It will arrive soon!', {
       duration: 5000,
-      icon: '🎉',
-      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' }
+      icon: '\u{1F389}',
+      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
 
     navigate('/orders/my-orders');
@@ -79,129 +82,299 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <HiOutlineClipboardCheck className="w-16 h-16 text-stone-400 mx-auto mb-4" />
-          <h2 className="font-display text-2xl font-bold mb-4">Nothing to checkout</h2>
+      <div className="min-h-screen pt-20 flex items-center justify-center bg-stone-50 dark:bg-stone-950">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={spring}
+          className="text-center"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+            className="w-20 h-20 bg-gradient-to-br from-teal-100 to-teal-50 dark:from-teal-950/30 dark:to-stone-800 rounded-full flex items-center justify-center mx-auto mb-4"
+          >
+            <HiOutlineClipboardCheck className="w-10 h-10 text-teal-400" />
+          </motion.div>
+          <h2 className="font-display text-2xl font-bold text-stone-900 dark:text-stone-100 mb-4">Nothing to checkout</h2>
           <Link to="/products" className="btn-primary">Continue Shopping</Link>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
+  const currentStepIndex = steps.findIndex(s => s.key === step);
+  const progressWidth = `${((currentStepIndex + 1) / steps.length) * 100}%`;
+
   return (
     <div className="min-h-screen pt-20 bg-stone-50 dark:bg-stone-950">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+
+        {/* Back */}
+        <motion.button
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 mb-6 transition-colors group"
+        >
+          <HiOutlineArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Cart
+        </motion.button>
+
         {/* Header */}
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 mb-6 transition-colors">
-          <HiOutlineArrowLeft className="w-5 h-5" /> Back to Cart
-        </button>
-        <h1 className="font-display text-4xl font-bold text-stone-900 dark:text-stone-100 mb-8">Checkout</h1>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={spring}>
+          <h1 className="font-display text-4xl font-bold text-stone-900 dark:text-stone-100 mb-8">Checkout</h1>
+        </motion.div>
+
+        {/* Stepper */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-8"
+        >
+          <div className="flex items-center justify-between max-w-xl">
+            {steps.map((s, i) => {
+              const Icon = s.icon;
+              const isActive = step === s.key;
+              const isComplete = currentStepIndex > i;
+              return (
+                <div key={s.key} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <motion.div
+                      animate={{
+                        backgroundColor: isComplete ? '#16a34a' : isActive ? '#f97316' : '#d6d3d1',
+                        scale: isActive ? 1.1 : 1,
+                      }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold ${isComplete ? 'bg-green-500' : isActive ? 'bg-orange-500' : 'bg-stone-300 dark:bg-stone-700'}`}
+                    >
+                      {isComplete ? '\u2713' : <Icon className="w-4 h-4" />}
+                    </motion.div>
+                    <span className={`text-xs mt-1.5 font-medium ${isActive || isComplete ? 'text-stone-900 dark:text-stone-100' : 'text-stone-400'}`}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div className="w-16 sm:w-24 h-0.5 mx-2 bg-stone-200 dark:bg-stone-700 rounded-full relative overflow-hidden">
+                      <motion.div
+                        initial={{ width: '0%' }}
+                        animate={{ width: isComplete ? '100%' : '0%' }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute inset-0 bg-gradient-to-r from-orange-500 to-teal-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden sm:block w-full h-1 bg-stone-200 dark:bg-stone-700 rounded-full mt-4 overflow-hidden">
+            <motion.div
+              initial={{ width: '0%' }}
+              animate={{ width: progressWidth }}
+              transition={{ type: 'spring', stiffness: 80, damping: 14 }}
+              className="h-full bg-gradient-to-r from-orange-500 to-teal-500 rounded-full"
+            />
+          </div>
+        </motion.div>
 
         <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-8">
-          
+
           {/* Form Section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Shipping Details */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
-              <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100 mb-4">Shipping Information</h2>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="card p-6 md:p-8"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                  <HiOutlineTruck className="w-5 h-5 text-orange-500" />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100">Shipping Information</h2>
+                  <p className="text-stone-400 text-sm">Enter your delivery details</p>
+                </div>
+              </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Full Name</label>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Full Name</label>
                   <input type="text" name="fullName" value={form.fullName} onChange={handleChange} className="input-field" readOnly />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Email</label>
                   <input type="email" name="email" value={form.email} onChange={handleChange} className="input-field" readOnly />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Street Address *</label>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Street Address *</label>
                   <input type="text" name="address" value={form.address} onChange={handleChange} placeholder="123 Main St" className="input-field" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">City *</label>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">City *</label>
                   <input type="text" name="city" value={form.city} onChange={handleChange} placeholder="New York" className="input-field" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">ZIP Code *</label>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">ZIP Code *</label>
                   <input type="text" name="zip" value={form.zip} onChange={handleChange} placeholder="10001" className="input-field" required />
                 </div>
               </div>
             </motion.div>
 
-            {/* Payment Details (UI Only) */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100">Payment Details</h2>
-                <span className="text-xs bg-stone-100 dark:bg-stone-800 text-stone-500 px-2 py-0.5 rounded-full">Mock Payment</span>
+            {/* Payment Details */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="card p-6 md:p-8"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+                  <HiOutlineCreditCard className="w-5 h-5 text-teal-500" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100">Payment Details</h2>
+                    <span className="text-[10px] bg-stone-100 dark:bg-stone-800 text-stone-500 px-2 py-0.5 rounded-full font-medium">Mock</span>
+                  </div>
+                  <p className="text-stone-400 text-sm">Your data is encrypted and secure</p>
+                </div>
               </div>
+
+              {/* Card mockup UI */}
+              <motion.div
+                whileHover={{ y: -2 }}
+                className="bg-gradient-to-br from-stone-900 to-stone-800 dark:from-stone-950 dark:to-stone-900 rounded-2xl p-6 mb-6 text-white relative overflow-hidden"
+              >
+                <div className="absolute -right-8 -top-8 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl" />
+                <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-teal-500/10 rounded-full blur-2xl" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-8">
+                    <span className="text-xs uppercase tracking-widest opacity-60">Credit Card</span>
+                    <div className="flex gap-1">
+                      <div className="w-6 h-4 bg-orange-500 rounded" />
+                      <div className="w-6 h-4 bg-teal-500 rounded" />
+                    </div>
+                  </div>
+                  <p className="font-mono text-lg tracking-wider mb-6">
+                    {form.cardNumber || '•••• •••• •••• ••••'}
+                  </p>
+                  <div className="flex justify-between text-sm">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider opacity-60">Expiry</p>
+                      <p className="font-mono">{form.expiry || 'MM/YY'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider opacity-60">CVV</p>
+                      <p className="font-mono">{form.cvv ? '\u2022'.repeat(form.cvv.length) : '•••'}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Card Number</label>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Card Number</label>
                   <input type="text" name="cardNumber" value={form.cardNumber} onChange={handleChange} placeholder="4242 4242 4242 4242" className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Expiry Date</label>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Expiry Date</label>
                   <input type="text" name="expiry" value={form.expiry} onChange={handleChange} placeholder="MM/YY" className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">CVV</label>
-                  <input type="text" name="cvv" value={form.cvv} onChange={handleChange} placeholder="123" className="input-field" />
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">CVV</label>
+                  <input type="text" name="cvv" value={form.cvv} onChange={handleChange} placeholder="123" className="input-field" maxLength={4} />
                 </div>
               </div>
             </motion.div>
-          </div>
 
-          {/* Order Summary Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="card p-6 sticky top-24">
-              <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100 mb-6">Order Summary</h2>
-              
-              <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
-                {items.map(item => (
-                  <div key={item.id} className="flex gap-3">
-                    <img src={item.image} alt={item.name} className="w-14 h-14 rounded-lg object-cover" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{item.name}</p>
-                      <p className="text-xs text-stone-400">Qty: {item.quantity}</p>
-                    </div>
-                    <p className="text-sm font-bold">${(item.price * item.quantity).toFixed(2)}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-stone-100 dark:border-stone-800 pt-4 space-y-2">
-                <div className="flex justify-between text-stone-500"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between text-stone-500"><span>Shipping</span><span>{shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}</span></div>
-                <div className="flex justify-between text-stone-500"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
-                <div className="flex justify-between font-bold text-lg text-stone-900 dark:text-stone-100 pt-2 border-t border-stone-100 dark:border-stone-800">
-                  <span>Total</span><span>${total.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
+            {/* Place Order Button (mobile) */}
+            <div className="lg:hidden">
+              <motion.button
+                type="submit"
                 disabled={loading}
-                className="btn-primary w-full mt-6 py-4 flex items-center justify-center gap-2"
+                whileHover={!loading ? { scale: 1.01 } : {}}
+                whileTap={!loading ? { scale: 0.99 } : {}}
+                className="btn-primary-glow w-full py-4 text-base justify-center"
               >
                 {loading ? (
-                  <>
-                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Processing...
-                  </>
+                  <><svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Processing…</>
                 ) : (
-                  <>
-                    <HiOutlineLockClosed className="w-5 h-5" />
-                    Place Order
-                  </>
+                  <><HiOutlineLockClosed className="w-5 h-5" /> Place Order — ${total.toFixed(2)}</>
                 )}
-              </button>
-
-              <p className="text-xs text-stone-400 text-center mt-4">
-                Your data is secure. This is a demo checkout.
-              </p>
+              </motion.button>
             </div>
+          </div>
+
+          {/* Order Summary Sidebar (desktop) */}
+          <div className="hidden lg:block">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="sticky top-24"
+            >
+              <div className="card-glass p-6 space-y-5">
+                <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100">Order Summary</h2>
+
+                <div className="space-y-3">
+                  {items.slice(0, 4).map(item => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800 flex-shrink-0">
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{item.name}</p>
+                        <p className="text-xs text-stone-400">Qty: {item.quantity}</p>
+                      </div>
+                      <span className="text-sm font-bold text-stone-900 dark:text-stone-100 flex-shrink-0">
+                        ${(item.price * item.quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                  {items.length > 4 && (
+                    <p className="text-xs text-stone-400 text-center">+{items.length - 4} more items</p>
+                  )}
+                </div>
+
+                <div className="border-t border-stone-200 dark:border-stone-700 pt-4 space-y-2">
+                  <div className="flex justify-between text-sm text-stone-600 dark:text-stone-400">
+                    <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-stone-600 dark:text-stone-400">
+                    <span>Shipping</span>
+                    <span className={shipping === 0 ? 'text-green-600 dark:text-green-400 font-medium' : ''}>{shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-stone-600 dark:text-stone-400">
+                    <span>Tax</span><span>${tax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg text-stone-900 dark:text-stone-100 pt-2 border-t border-stone-200 dark:border-stone-700">
+                    <span>Total</span><span>${total.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <motion.button
+                  type="submit"
+                  disabled={loading}
+                  whileHover={!loading ? { scale: 1.02, boxShadow: '0 8px 32px rgba(234,88,12,0.3)' } : {}}
+                  whileTap={!loading ? { scale: 0.98 } : {}}
+                  className="btn-primary-glow w-full py-4 text-base justify-center"
+                >
+                  {loading ? (
+                    <><svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Processing…</>
+                  ) : (
+                    <><HiOutlineLockClosed className="w-5 h-5" /> Place Order — ${total.toFixed(2)}</>
+                  )}
+                </motion.button>
+
+                <div className="flex items-center justify-center gap-1.5 text-xs text-stone-400">
+                  <HiOutlineShieldCheck className="w-3.5 h-3.5" />
+                  Secured with 256-bit SSL encryption
+                </div>
+              </div>
+            </motion.div>
           </div>
         </form>
       </div>
