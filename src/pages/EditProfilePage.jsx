@@ -7,8 +7,9 @@ import {
   HiOutlineArrowLeft, HiOutlineExclamationCircle,
   HiOutlineShieldCheck,
 } from 'react-icons/hi';
-import { useAuthStore } from '../store';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
+import { updateUserDocument } from '../services/userService';
 
 // ── Inline field error ────────────────────────────────────────────────────────
 const FieldError = ({ msg }) =>
@@ -44,12 +45,12 @@ function validateEdit({ name, email, newPassword, confirmPassword }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function EditProfilePage() {
-  const { user, updateUser } = useAuthStore();
+  const { currentUser, userData } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name:            user?.name  || '',
-    email:           user?.email || '',
+    name:            userData?.name  || '',
+    email:           userData?.email || '',
     newPassword:     '',
     confirmPassword: '',
   });
@@ -57,7 +58,7 @@ export default function EditProfilePage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading,      setLoading]      = useState(false);
 
-  const isSeller = user?.role === 'seller';
+  const isSeller = userData?.role === 'seller';
 
   const handleChange = (field) => (e) => {
     setForm(f => ({ ...f, [field]: e.target.value }));
@@ -75,17 +76,19 @@ export default function EditProfilePage() {
     if (Object.keys(err).length) { setErrors(err); return; }
 
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-
-    updateUser({
-      name:  form.name.trim(),
-      email: form.email.trim(),
-      ...(form.newPassword ? { passwordChanged: true } : {}),
-    });
-
-    toast.success('Profile updated successfully! ✅', {
-      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
-    });
+    try {
+      await updateUserDocument(currentUser.uid, {
+        name: form.name.trim(),
+        email: form.email.trim(),
+      });
+      toast.success('Profile updated successfully! ✅', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    } catch (err) {
+      toast.error('Failed to update profile. Please try again.', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    }
     setLoading(false);
     navigate(isSeller ? '/seller/dashboard' : '/profile');
   };
@@ -118,11 +121,11 @@ export default function EditProfilePage() {
             <div className="card p-5 flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-teal-500
                               flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-                {user?.name?.charAt(0).toUpperCase()}
+                {userData?.name?.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="font-semibold text-stone-900 dark:text-stone-100">{user?.name}</p>
-                <p className="text-sm text-stone-400">{user?.email}</p>
+                <p className="font-semibold text-stone-900 dark:text-stone-100">{userData?.name}</p>
+                <p className="text-sm text-stone-400">{userData?.email}</p>
                 <span className={`inline-flex mt-1.5 items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
                   isSeller
                     ? 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400'

@@ -2,19 +2,20 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { HiOutlineClipboardCheck, HiOutlineArrowLeft, HiOutlineLockClosed } from 'react-icons/hi';
-import { useCartStore, useAuthStore, useOrderStore } from '../store';
+import { useCartStore, useOrderStore } from '../store';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, clearCart } = useCartStore();
-  const { user } = useAuthStore();
+  const { userData } = useAuth();
   const { placeOrder } = useOrderStore();
   
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    fullName: user?.name || '',
-    email: user?.email || '',
+    fullName: userData?.name || '',
+    email: userData?.email || '',
     address: '',
     city: '',
     zip: '',
@@ -54,7 +55,7 @@ export default function CheckoutPage() {
 
     // حفظ الأوردر في الـ Store والـ localStorage
     placeOrder({
-      buyerEmail: user.email,
+      buyerEmail: userData.email,
       items: orderItems,
       subtotal,
       shipping,

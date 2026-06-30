@@ -7,13 +7,14 @@ import {
   HiOutlineTrash, HiOutlineEye, HiOutlineX, HiOutlinePhotograph,
   HiOutlineUpload,
 } from 'react-icons/hi';
-import { useAuthStore, useProductStore, useOrderStore } from '../store';
+import { useAuth } from '../hooks/useAuth';
+import { useProductStore, useOrderStore } from '../store';
 import toast from 'react-hot-toast';
 
 // ─── Add Product Modal (with image upload) ────────────────────────────────────
 function AddProductModal({ onClose }) {
   const addProduct = useProductStore(s => s.addProduct);
-  const user       = useAuthStore(s => s.user);
+  const { userData } = useAuth();
   const fileRef    = useRef(null);
 
   const [form, setForm] = useState({
@@ -65,7 +66,7 @@ function AddProductModal({ onClose }) {
     addProduct({
       ...form,
       image:       imagePreview || '',
-      sellerEmail: user?.email,
+      sellerEmail: userData?.email,
       features: form.features
         ? form.features.split(',').map(f => f.trim()).filter(Boolean)
         : [],
@@ -250,16 +251,16 @@ function AddProductModal({ onClose }) {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function SellerDashboardPage() {
-  const { user }          = useAuthStore();
+  const { userData }          = useAuth();
   const allProducts       = useProductStore(s => s.products);
   const deleteProduct     = useProductStore(s => s.deleteProduct);
   const { getOrdersBySeller, getSellerBalance } = useOrderStore();
 
   const products     = allProducts.filter(p =>
-    (p.sellerEmail || '').toLowerCase() === (user?.email || '').toLowerCase()
+    (p.sellerEmail || '').toLowerCase() === (userData?.email || '').toLowerCase()
   );
-  const sellerOrders = getOrdersBySeller(user?.email || '');
-  const balance      = getSellerBalance(user?.email || '');
+  const sellerOrders = getOrdersBySeller(userData?.email || '');
+  const balance      = getSellerBalance(userData?.email || '');
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -350,14 +351,14 @@ export default function SellerDashboardPage() {
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-teal-500
                             flex items-center justify-center text-white text-xl font-bold shadow">
-              {user?.name?.charAt(0).toUpperCase()}
+              {userData?.name?.charAt(0).toUpperCase()}
             </div>
             <div>
               <h1 className="font-display text-3xl font-bold text-stone-900 dark:text-stone-100">
                 Seller Dashboard
               </h1>
               <p className="text-stone-500 text-sm mt-0.5">
-                Welcome back, <span className="text-orange-500 font-semibold">{user?.name?.split(' ')[0]}</span>
+                Welcome back, <span className="text-orange-500 font-semibold">{userData?.name?.split(' ')[0]}</span>
               </p>
             </div>
           </div>

@@ -6,7 +6,8 @@ import {
   HiPlus, HiMinus, HiOutlineCheck,
   HiOutlineTruck, HiOutlineShieldCheck, HiOutlineArrowLeft,
 } from 'react-icons/hi';
-import { useCartStore, useWishlistStore, useAuthStore, useProductStore } from '../store';
+import { useCartStore, useWishlistStore, useProductStore } from '../store';
+import { useAuth } from '../hooks/useAuth';
 import ProductCard from '../components/product/ProductCard';
 import toast from 'react-hot-toast';
 
@@ -23,9 +24,9 @@ export default function ProductDetailPage() {
 
   const { addItem, updateQuantity, isInCart } = useCartStore();
   const { toggleItem, isWishlisted }          = useWishlistStore();
-  const user                                  = useAuthStore(s => s.user);
+  const { userData }                          = useAuth();
 
-  const isSeller   = user?.role === 'seller';
+  const isSeller   = userData?.role === 'seller';
   const wishlisted = product ? isWishlisted(product.id) : false;
   const inCart     = product ? isInCart(product.id)     : false;
 

@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from 'react-icons/hi';
 import { FaTwitter, FaInstagram, FaFacebook, FaLinkedin } from 'react-icons/fa';
-import { useAuthStore } from '../../store';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function Footer() {
-  const user           = useAuthStore(s => s.user);
-  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
-  const isSeller       = user?.role === 'seller';
-  const isBuyer        = user?.role === 'buyer';
+  const { currentUser, userData } = useAuth();
+  const isAuthenticated = !!currentUser;
+  const isSeller       = userData?.role === 'seller';
+  const isBuyer        = userData?.role === 'buyer';
 
   // ── Static shop links (always visible) ──────────────────────────────────
   const shopLinks = [

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
@@ -15,6 +16,7 @@ import { useThemeStore, useProductStore, useRouteStore } from './store';
 import ProtectedRoute from './components/ui/ProtectedRoute';
 import SellerDashboardPage from './pages/SellerDashboardPage';
 import EditProfilePage from './pages/EditProfilePage';
+import ScrollToTop from './components/ui/ScrollToTop';
 // ✅ استيراد الصفحات الجديدة
 import AboutPage from './pages/AboutPage';
 import TermsPage from './pages/TermsPage';
@@ -185,7 +187,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AppContent />
+      <AuthProvider>
+        <ScrollToTop />
+        <AppContent />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

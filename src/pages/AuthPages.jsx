@@ -4,12 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff,
   HiOutlineUser, HiOutlineExclamationCircle,
-  HiOutlineShoppingBag, HiOutlineTag,
 } from 'react-icons/hi';
-import { useAuthStore } from '../store';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
-// ── Spinner ───────────────────────────────────────────────────────────────────
 const Spinner = () => (
   <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -17,7 +15,6 @@ const Spinner = () => (
   </svg>
 );
 
-// ── Inline field error ────────────────────────────────────────────────────────
 const FieldError = ({ msg }) =>
   msg ? (
     <motion.p
@@ -30,10 +27,7 @@ const FieldError = ({ msg }) =>
     </motion.p>
   ) : null;
 
-// ── Validation ────────────────────────────────────────────────────────────────
-// Strict email: local@domain.tld — no spaces, no consecutive dots, valid TLD
 const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
-// Password: at least one letter AND one digit
 const PWD_MIX_RE = /^(?=.*[A-Za-z])(?=.*\d).+$/;
 
 function validateLogin({ email, password }) {
@@ -47,49 +41,28 @@ function validateLogin({ email, password }) {
 
 function validateRegister({ name, email, password, confirm, terms }) {
   const err = {};
-
-  // Name
   if (!name.trim())                err.name = 'Full name is required';
   else if (name.trim().length < 3) err.name = 'Name must be at least 3 characters';
   else if (/\d/.test(name))        err.name = 'Name should not contain numbers';
-
-  // Email — strict check
-  if (!email.trim())
-    err.email = 'Email is required';
-  else if (!EMAIL_RE.test(email.trim()))
-    err.email = 'Enter a valid email address (e.g. name@domain.com)';
-
-  // Password
-  if (!password)
-    err.password = 'Password is required';
-  else if (password.length < 8)
-    err.password = 'Password must be at least 8 characters';
-  else if (!PWD_MIX_RE.test(password))
-    err.password = 'Password must contain both letters and numbers';
-  else if (/^\d+$/.test(password))
-    err.password = 'Password cannot be numbers only';
-
-  // Confirm
-  if (!confirm)
-    err.confirm = 'Please confirm your password';
-  else if (password !== confirm)
-    err.confirm = 'Passwords do not match';
-
-  // Terms
-  if (!terms)
-    err.terms = 'You must accept the Terms of Service to continue';
-
+  if (!email.trim())               err.email = 'Email is required';
+  else if (!EMAIL_RE.test(email.trim())) err.email = 'Enter a valid email address (e.g. name@domain.com)';
+  if (!password)                   err.password = 'Password is required';
+  else if (password.length < 8)    err.password = 'Password must be at least 8 characters';
+  else if (!PWD_MIX_RE.test(password)) err.password = 'Password must contain both letters and numbers';
+  else if (/^\d+$/.test(password)) err.password = 'Password cannot be numbers only';
+  if (!confirm)                    err.confirm = 'Please confirm your password';
+  else if (password !== confirm)   err.confirm = 'Passwords do not match';
+  if (!terms)                      err.terms = 'You must accept the Terms of Service to continue';
   return err;
 }
 
-// ── Password strength meter ───────────────────────────────────────────────────
 function PasswordStrength({ password }) {
   if (!password) return null;
   const checks = [
     password.length >= 8,
     /[A-Za-z]/.test(password),
     /\d/.test(password),
-    /[^A-Za-z0-9]/.test(password),   // special char bonus
+    /[^A-Za-z0-9]/.test(password),
   ];
   const score = checks.filter(Boolean).length;
   const levels = [
@@ -116,19 +89,15 @@ function PasswordStrength({ password }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LOGIN PAGE
-// ─────────────────────────────────────────────────────────────────────────────
 export function LoginPage() {
-  const [form, setForm]               = useState({ email: '', password: '' });
-  const [errors, setErrors]           = useState({});
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading]         = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Use store actions directly — no manual localStorage parsing needed
-  const { login, findUserByEmail } = useAuthStore();
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const { login: authLogin } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const redirectTo = location.state?.from || '/';
 
   const handleChange = (field) => (e) => {
@@ -138,39 +107,31 @@ export function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Step 1 — format validation
     const err = validateLogin(form);
-
-    // Step 2 — only check account existence if format is valid
-    let matchedUser = null;
-    if (!err.email && !err.password) {
-      matchedUser = findUserByEmail(form.email);
-      if (!matchedUser) {
-        err.email = 'No account found with this email. Please register first.';
-      } else if (matchedUser.password !== form.password) {
-        err.password = 'Incorrect password. Please try again.';
-      }
-    }
-
     if (Object.keys(err).length) { setErrors(err); return; }
 
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 900));
-
-    login({ name: matchedUser.name, email: matchedUser.email, role: matchedUser.role });
-
-    toast.success(
-      matchedUser.role === 'seller' ? 'Welcome back, Seller! 🏪' : 'Welcome back! 👋',
-      { style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' } }
-    );
-
-    const dest = redirectTo !== '/'
-      ? redirectTo
-      : matchedUser.role === 'seller' ? '/seller/dashboard' : '/';
-
-    navigate(dest, { replace: true });
-    setLoading(false);
+    setSubmitting(true);
+    try {
+      await authLogin(form.email.trim(), form.password);
+      toast.success('Welcome back! 👋', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+      const dest = redirectTo !== '/' ? redirectTo : '/';
+      navigate(dest, { replace: true });
+    } catch (err) {
+      const code = err.code;
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+        setErrors({ email: 'Invalid email or password. Please try again.' });
+      } else if (code === 'auth/invalid-email') {
+        setErrors({ email: 'Invalid email format.' });
+      } else if (code === 'auth/too-many-requests') {
+        setErrors({ email: 'Too many attempts. Please try again later.' });
+      } else {
+        setErrors({ email: 'Login failed. Please check your credentials.' });
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const cls = (field) =>
@@ -189,7 +150,6 @@ export function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Email address</label>
               <div className="relative">
@@ -199,7 +159,6 @@ export function LoginPage() {
               <AnimatePresence mode="wait">{errors.email && <FieldError key="e" msg={errors.email} />}</AnimatePresence>
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Password</label>
               <div className="relative">
@@ -212,15 +171,8 @@ export function LoginPage() {
               <AnimatePresence mode="wait">{errors.password && <FieldError key="p" msg={errors.password} />}</AnimatePresence>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400 cursor-pointer select-none">
-                <input type="checkbox" className="w-4 h-4 rounded accent-orange-500" />
-                Remember me
-              </label>
-            </div>
-
-            <motion.button type="submit" disabled={loading} whileHover={!loading ? { scale: 1.01 } : {}} whileTap={!loading ? { scale: 0.99 } : {}} className="btn-primary w-full py-4 text-base justify-center">
-              {loading ? <><Spinner /> Signing in…</> : 'Sign In'}
+            <motion.button type="submit" disabled={submitting} whileHover={!submitting ? { scale: 1.01 } : {}} whileTap={!submitting ? { scale: 0.99 } : {}} className="btn-primary w-full py-4 text-base justify-center">
+              {submitting ? <><Spinner /> Signing in…</> : 'Sign In'}
             </motion.button>
           </form>
 
@@ -234,16 +186,13 @@ export function LoginPage() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// REGISTER PAGE
-// ─────────────────────────────────────────────────────────────────────────────
 export function RegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', role: 'buyer', terms: false });
-  const [errors, setErrors]           = useState({});
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', terms: false });
+  const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading]         = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const { register, emailExists } = useAuthStore();
+  const { register: authRegister } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (field) => (e) => {
@@ -254,14 +203,7 @@ export function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const err = validateRegister(form);
-
-    // Duplicate email check (only if email format is valid)
-    if (!err.email && emailExists(form.email)) {
-      err.email = 'This email is already registered. Please log in instead.';
-    }
-
     if (Object.keys(err).length) {
       setErrors(err);
       document.querySelector(`[data-field="${Object.keys(err)[0]}"]`)
@@ -269,18 +211,29 @@ export function RegisterPage() {
       return;
     }
 
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 900));
-
-    register({ name: form.name.trim(), email: form.email.trim(), password: form.password, role: form.role });
-
-    toast.success(
-      form.role === 'seller' ? 'Seller account created! Welcome 🏪' : 'Account created! Welcome to LuxeShop 🎉',
-      { style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' } }
-    );
-
-    navigate(form.role === 'seller' ? '/seller/dashboard' : '/');
-    setLoading(false);
+    setSubmitting(true);
+    try {
+      await authRegister(form.name.trim(), form.email.trim(), form.password);
+      toast.success('Account created! Welcome to LuxeShop 🎉', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+      navigate('/');
+    } catch (err) {
+      const code = err.code;
+      if (code === 'auth/email-already-in-use') {
+        setErrors({ email: 'This email is already registered. Please log in instead.' });
+      } else if (code === 'auth/weak-password') {
+        setErrors({ password: 'Password is too weak. Choose a stronger one.' });
+      } else if (code === 'auth/invalid-email') {
+        setErrors({ email: 'Invalid email format.' });
+      } else {
+        setErrors({ email: 'Registration failed. Please try again.' });
+      }
+      document.querySelector(`[data-field="${Object.keys(errors)[0] || 'email'}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const cls = (field) =>
@@ -300,33 +253,6 @@ export function RegisterPage() {
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-            {/* Role selector */}
-            <div data-field="role">
-              <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">I want to…</label>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { value: 'buyer',  label: 'Shop Products', icon: HiOutlineShoppingBag, desc: 'Browse & buy'  },
-                  { value: 'seller', label: 'Sell Products', icon: HiOutlineTag,         desc: 'List & manage' },
-                ].map(({ value, label, icon: Icon, desc }) => (
-                  <button
-                    key={value} type="button" onClick={() => setForm(f => ({ ...f, role: value }))}
-                    className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
-                      form.role === value
-                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400'
-                        : 'border-stone-200 dark:border-stone-700 text-stone-500 hover:border-stone-300 dark:hover:border-stone-600'
-                    }`}
-                  >
-                    <Icon className="w-6 h-6" />
-                    <div className="text-center">
-                      <div className="text-sm font-semibold">{label}</div>
-                      <div className="text-xs opacity-70">{desc}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Name */}
             <div data-field="name">
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Full Name</label>
               <div className="relative">
@@ -336,7 +262,6 @@ export function RegisterPage() {
               <AnimatePresence mode="wait">{errors.name && <FieldError key="n" msg={errors.name} />}</AnimatePresence>
             </div>
 
-            {/* Email */}
             <div data-field="email">
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Email address</label>
               <div className="relative">
@@ -346,7 +271,6 @@ export function RegisterPage() {
               <AnimatePresence mode="wait">{errors.email && <FieldError key="e" msg={errors.email} />}</AnimatePresence>
             </div>
 
-            {/* Password */}
             <div data-field="password">
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Password</label>
               <div className="relative">
@@ -361,7 +285,6 @@ export function RegisterPage() {
               {!form.password && <p className="text-xs text-stone-400 mt-1.5">Min 8 chars — must include letters and numbers</p>}
             </div>
 
-            {/* Confirm */}
             <div data-field="confirm">
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Confirm Password</label>
               <div className="relative">
@@ -376,7 +299,6 @@ export function RegisterPage() {
               <AnimatePresence mode="wait">{errors.confirm && <FieldError key="c" msg={errors.confirm} />}</AnimatePresence>
             </div>
 
-            {/* Terms */}
             <div data-field="terms">
               <label className="flex items-start gap-3 cursor-pointer select-none">
                 <input type="checkbox" checked={form.terms} onChange={handleChange('terms')} className="w-4 h-4 mt-0.5 rounded accent-orange-500 cursor-pointer" />
@@ -391,11 +313,11 @@ export function RegisterPage() {
             </div>
 
             <motion.button
-              type="submit" disabled={loading}
-              whileHover={!loading ? { scale: 1.01 } : {}} whileTap={!loading ? { scale: 0.99 } : {}}
+              type="submit" disabled={submitting}
+              whileHover={!submitting ? { scale: 1.01 } : {}} whileTap={!submitting ? { scale: 0.99 } : {}}
               className="btn-primary w-full py-4 text-base justify-center mt-2"
             >
-              {loading ? <><Spinner /> Creating account…</> : `Create ${form.role === 'seller' ? 'Seller' : 'Buyer'} Account`}
+              {submitting ? <><Spinner /> Creating account…</> : 'Create Buyer Account'}
             </motion.button>
           </form>
 

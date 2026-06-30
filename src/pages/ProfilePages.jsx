@@ -4,9 +4,10 @@ import {
   HiOutlineUser, HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker,
   HiOutlineShoppingBag, HiOutlineHeart, HiOutlineLogout,
   HiOutlinePencil, HiOutlineClipboardList, HiOutlineLockClosed,
-  HiOutlineCheck,
+  HiOutlineCheck, HiOutlineStar,
 } from 'react-icons/hi';
-import { useAuthStore, useCartStore, useWishlistStore, useOrderStore } from '../store';
+import { useAuth } from '../hooks/useAuth';
+import { useCartStore, useWishlistStore, useOrderStore } from '../store';
 import toast from 'react-hot-toast';
 
 // ── Empty — clean slate ───────────────────────────────────────────────────────
@@ -16,13 +17,13 @@ const mockOrders = [];
 // PROFILE PAGE  (named export — imported as: import { ProfilePage } from ...)
 // ─────────────────────────────────────────────────────────────────────────────
 export function ProfilePage() {
-  const { user, logout }      = useAuthStore();
+  const { currentUser, userData, logout, becomeSeller } = useAuth();
   const cartItems             = useCartStore(s => s.items);
   const wishlistItems         = useWishlistStore(s => s.items);
   const { getOrdersByBuyer }  = useOrderStore();
   const navigate              = useNavigate();
 
-  if (!user) {
+  if (!currentUser || !userData) {
     return (
       <div className="min-h-screen pt-20 flex items-center justify-center">
         <div className="text-center">
@@ -43,9 +44,21 @@ export function ProfilePage() {
     navigate('/');
   };
 
+  const handleBecomeSeller = async () => {
+    try {
+      await becomeSeller();
+      toast.success('You are now a seller! 🏪', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    } catch (err) {
+      toast.error('Failed to upgrade. Please try again.', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    }
+  };
+
   const cartTotal   = cartItems.reduce((s, i) => s + i.quantity, 0);
-  // Live order count from the real store
-  const myOrders    = getOrdersByBuyer(user.email);
+  const myOrders    = getOrdersByBuyer(userData.email);
   const orderCount  = myOrders.length;
 
   return (
@@ -65,20 +78,20 @@ export function ProfilePage() {
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-teal-500
                               flex items-center justify-center text-white text-3xl font-bold
                               shadow-lg mx-auto mb-4">
-                {user?.name?.charAt(0).toUpperCase()}
+                {userData?.name?.charAt(0).toUpperCase()}
               </div>
 
               <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100">
-                {user.name}
+                {userData.name}
               </h2>
-              <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">{user.email}</p>
+              <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">{userData.email}</p>
 
               <span className={`inline-flex mt-2 items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                user?.role === 'seller'
+                userData?.role === 'seller'
                   ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
                   : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
               }`}>
-                {user?.role === 'seller' ? '🏪 Seller' : '🛍️ Buyer'}
+                {userData?.role === 'seller' ? '🏪 Seller' : '🛍️ Buyer'}
               </span>
 
               {/* Live counters */}
@@ -109,7 +122,7 @@ export function ProfilePage() {
               {[
                 { icon: HiOutlineUser,        label: 'Edit Profile', to: '/profile/edit' },
                 { icon: HiOutlineShoppingBag, label: `My Orders (${orderCount})`, to: '/orders/my-orders' },
-                ...(user?.role === 'buyer'
+                ...(userData?.role === 'buyer'
                   ? [{ icon: HiOutlineHeart, label: 'Wishlist', to: '/wishlist' }]
                   : []),
               ].map(({ icon: Icon, label, to }) => (
@@ -142,6 +155,20 @@ export function ProfilePage() {
                   Sign Out
                 </button>
               </div>
+
+              {userData?.role === 'buyer' && (
+                <div className="border-t border-stone-100 dark:border-stone-800 mt-2 pt-2">
+                  <button
+                    onClick={handleBecomeSeller}
+                    className="flex items-center gap-3 w-full px-4 py-3 rounded-xl
+                               text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/30
+                               transition-colors text-sm font-medium"
+                  >
+                    <HiOutlineStar className="w-5 h-5" />
+                    Become a Seller
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
 
@@ -168,12 +195,12 @@ export function ProfilePage() {
                 </button>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
-                {[
-                  { icon: HiOutlineUser,           label: 'Full Name', value: user?.name  },
-                  { icon: HiOutlineMail,           label: 'Email',     value: user?.email },
-                  { icon: HiOutlinePhone,          label: 'Phone',     value: 'Not set'   },
-                  { icon: HiOutlineLocationMarker, label: 'Location',  value: 'Not set'   },
-                ].map(({ icon: Icon, label, value }) => (
+                  {[
+                    { icon: HiOutlineUser,           label: 'Full Name', value: userData?.name  },
+                    { icon: HiOutlineMail,           label: 'Email',     value: userData?.email },
+                    { icon: HiOutlinePhone,          label: 'Phone',     value: 'Not set'   },
+                    { icon: HiOutlineLocationMarker, label: 'Location',  value: 'Not set'   },
+                  ].map(({ icon: Icon, label, value }) => (
                   <div key={label}
                        className="flex items-center gap-3 p-4
                                   bg-stone-50 dark:bg-stone-800/50 rounded-xl">
@@ -286,11 +313,11 @@ export function ProfilePage() {
 // ORDERS PAGE — buyer's real orders from useOrderStore
 // ─────────────────────────────────────────────────────────────────────────────
 export function OrdersPage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { currentUser, userData } = useAuth();
   const { getOrdersByBuyer, confirmDelivery } = useOrderStore();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
+  if (!currentUser) {
     return (
       <div className="min-h-screen pt-20 flex items-center justify-center px-4">
         <div className="text-center">
@@ -310,7 +337,7 @@ export function OrdersPage() {
     );
   }
 
-  const orders = getOrdersByBuyer(user.email);
+  const orders = getOrdersByBuyer(userData?.email);
 
   const handleConfirmDelivery = (orderId) => {
     confirmDelivery(orderId);

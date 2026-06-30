@@ -5,15 +5,16 @@ import {
   HiOutlineShoppingCart, HiShoppingCart,
   HiStar,
 } from 'react-icons/hi';
-import { useCartStore, useWishlistStore, useAuthStore } from '../../store';
+import { useCartStore, useWishlistStore } from '../../store';
+import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export default function ProductCard({ product, index = 0 }) {
   const { addItem, isInCart }        = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
-  const user                         = useAuthStore(s => s.user);
+  const { userData }                 = useAuth();
 
-  const isSeller   = user?.role === 'seller';
+  const isSeller   = userData?.role === 'seller';
   const inCart     = isInCart(product.id);
   const wishlisted = isWishlisted(product.id);
 

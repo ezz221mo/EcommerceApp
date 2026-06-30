@@ -93,28 +93,29 @@ export default function ProductsPage() {
         <div className="space-y-1">
           <button
             onClick={() => { setSelectedCat(''); setSearchParams({}); }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
-              !selectedCat
-                ? 'bg-orange-50 text-orange-600 font-semibold dark:bg-orange-950/30 dark:text-orange-400'
-                : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
-            }`}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer"
+            style={!selectedCat
+              ? { backgroundColor: '#fee2e2', color: '#dc2626', fontWeight: 600 }
+              : { color: '#1c1917' }
+            }
           >
             All Products ({products.length})
           </button>
           {categories.map(cat => {
             const count = products.filter(p => p.category === cat.id).length;
+            const isActive = selectedCat === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => { setSelectedCat(cat.id); setSearchParams({ cat: cat.id }); }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between ${
-                  selectedCat === cat.id
-                    ? 'bg-orange-50 text-orange-600 font-semibold dark:bg-orange-950/30 dark:text-orange-400'
-                    : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
-                }`}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between cursor-pointer"
+                style={isActive
+                  ? { backgroundColor: '#fee2e2', color: '#dc2626', fontWeight: 600 }
+                  : { color: '#1c1917' }
+                }
               >
                 <span>{cat.icon} {cat.name}</span>
-                <span className="text-xs text-stone-400">{count}</span>
+                <span className="text-xs" style={{ color: '#71717a' }}>{count}</span>
               </button>
             );
           })}
