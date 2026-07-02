@@ -1,18 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineAdjustments, HiOutlineX, HiOutlineSearch, HiOutlineFilter } from 'react-icons/hi';
+import { HiOutlineAdjustments, HiOutlineX, HiOutlineSearch, HiOutlineFilter, HiOutlineCheck } from 'react-icons/hi';
 import ProductCard from '../components/product/ProductCard';
 import ProductSkeleton from '../components/product/ProductSkeleton';
+import RecentlyViewed from '../components/product/RecentlyViewed';
 import { categories } from '../data/products';
 import { useProductStore } from '../store';
+import useRecentlyViewed from '../hooks/useRecentlyViewed';
 
 const sortOptions = [
-  { value: 'featured', label: 'Featured' },
-  { value: 'newest',   label: 'Newest'   },
-  { value: 'price-asc',  label: 'Price: Low to High'  },
-  { value: 'price-desc', label: 'Price: High to Low'  },
-  { value: 'rating',   label: 'Top Rated' },
+  { value: 'newest',       label: 'Newest'              },
+  { value: 'oldest',       label: 'Oldest'              },
+  { value: 'price-asc',    label: 'Price: Low to High'  },
+  { value: 'price-desc',   label: 'Price: High to Low'  },
+  { value: 'rating',       label: 'Highest Rated'       },
+  { value: 'best-selling', label: 'Best Selling'        },
 ];
 
 const priceRanges = [

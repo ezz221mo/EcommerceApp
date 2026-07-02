@@ -15,8 +15,11 @@ export default function ComparePage() {
     { key: 'image', label: 'Image' },
     { key: 'name', label: 'Name' },
     { key: 'category', label: 'Category' },
+    { key: 'brand', label: 'Brand' },
     { key: 'price', label: 'Price' },
     { key: 'rating', label: 'Rating' },
+    { key: 'sizes', label: 'Sizes' },
+    { key: 'colors', label: 'Colors' },
     { key: 'description', label: 'Description' },
     { key: 'inStock', label: 'Availability' },
     { key: 'actions', label: 'Actions' },
@@ -34,6 +37,8 @@ export default function ComparePage() {
         return <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm">{product.name}</span>;
       case 'category':
         return <span className="text-sm capitalize text-stone-600 dark:text-stone-400">{product.category || '—'}</span>;
+      case 'brand':
+        return <span className="text-sm text-stone-700 dark:text-stone-300 font-medium">{product.brand || '—'}</span>;
       case 'price':
         return (
           <div>
@@ -51,6 +56,14 @@ export default function ComparePage() {
             {product.reviews > 0 && <span className="text-xs text-stone-400">({product.reviews})</span>}
           </div>
         );
+      case 'sizes':
+        return product.sizes?.length > 0
+          ? <div className="flex flex-wrap gap-1 justify-center">{product.sizes.map(s => <span key={s} className="text-xs px-2 py-0.5 bg-stone-100 dark:bg-stone-800 rounded-md text-stone-600 dark:text-stone-400 font-medium">{s}</span>)}</div>
+          : <span className="text-sm text-stone-400">—</span>;
+      case 'colors':
+        return product.colors?.length > 0
+          ? <div className="flex flex-wrap gap-1.5 justify-center">{product.colors.map(c => <span key={c.hex} className="w-5 h-5 rounded-full border border-stone-200 dark:border-stone-700" style={{ backgroundColor: c.hex }} title={c.name} />)}</div>
+          : <span className="text-sm text-stone-400">—</span>;
       case 'description':
         return <p className="text-sm text-stone-600 dark:text-stone-400 line-clamp-3 leading-relaxed">{product.description || '—'}</p>;
       case 'inStock':
@@ -189,12 +202,32 @@ export default function ComparePage() {
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
+                  <p className="text-xs text-stone-400">Brand</p>
+                  <p className="font-medium text-stone-900 dark:text-stone-100 mt-0.5">{product.brand || '—'}</p>
+                </div>
+                <div>
                   <p className="text-xs text-stone-400">Rating</p>
                   <div className="flex items-center gap-1 mt-0.5">
                     <HiStar className="w-3.5 h-3.5 text-amber-400" />
                     <span className="font-medium text-stone-900 dark:text-stone-100">{product.rating || '—'}</span>
                   </div>
                 </div>
+                {product.sizes?.length > 0 && (
+                  <div>
+                    <p className="text-xs text-stone-400">Sizes</p>
+                    <div className="flex gap-1 mt-0.5 flex-wrap">
+                      {product.sizes.map(s => <span key={s} className="text-xs px-2 py-0.5 bg-stone-100 dark:bg-stone-800 rounded-md text-stone-600 dark:text-stone-400 font-medium">{s}</span>)}
+                    </div>
+                  </div>
+                )}
+                {product.colors?.length > 0 && (
+                  <div>
+                    <p className="text-xs text-stone-400">Colors</p>
+                    <div className="flex gap-1 mt-0.5 flex-wrap">
+                      {product.colors.map(c => <span key={c.hex} className="w-4 h-4 rounded-full border border-stone-200 dark:border-stone-700" style={{ backgroundColor: c.hex }} title={c.name} />)}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-stone-400">Availability</p>
                   <span className={`badge text-xs mt-0.5 ${product.inStock ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
