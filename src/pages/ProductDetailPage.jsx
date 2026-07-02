@@ -5,10 +5,12 @@ import {
   HiOutlineShoppingCart, HiOutlineHeart, HiHeart, HiStar,
   HiPlus, HiMinus, HiOutlineCheck,
   HiOutlineTruck, HiOutlineShieldCheck, HiOutlineArrowLeft,
+  HiOutlineShare, HiOutlineTemplate,
 } from 'react-icons/hi';
 import { useCartStore, useWishlistStore, useProductStore } from '../store';
 import { useAuth } from '../hooks/useAuth';
 import ProductCard from '../components/product/ProductCard';
+import ImageZoom from '../components/product/ImageZoom';
 import toast from 'react-hot-toast';
 
 export default function ProductDetailPage() {
@@ -21,6 +23,8 @@ export default function ProductDetailPage() {
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity,      setQuantity]      = useState(1);
+  const [selectedColor, setSelectedColor] = useState(0);
+  const [selectedSize,  setSelectedSize]  = useState(0);
 
   const { addItem, updateQuantity, isInCart } = useCartStore();
   const { toggleItem, isWishlisted }          = useWishlistStore();
@@ -74,6 +78,24 @@ export default function ProductDetailPage() {
     });
   };
 
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({ title: product.name, url: window.location.href });
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Link copied to clipboard!', {
+        style: { borderRadius: '12px' },
+      });
+    }
+  };
+
+  const handleAddToOutfit = () => {
+    toast('Add to outfit coming soon!', {
+      icon: '\u{1F455}',
+      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+    });
+  };
+
   return (
     <div className="min-h-screen pt-20 bg-stone-50 dark:bg-stone-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -106,11 +128,7 @@ export default function ProductDetailPage() {
               animate={{ opacity: 1 }}
               className="aspect-square rounded-3xl overflow-hidden bg-stone-100 dark:bg-stone-800 mb-4"
             >
-              <img
-                src={images[selectedImage]}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
+              <ImageZoom src={images[selectedImage]} alt={product.name} zoom={2.5} />
             </motion.div>
             {images.length > 1 && (
               <div className="flex gap-3 flex-wrap">
@@ -146,6 +164,12 @@ export default function ProductDetailPage() {
                 }`}>{product.badge}</span>
               )}
             </div>
+
+            {product.brand && (
+              <p className="text-xs text-stone-400 dark:text-stone-500 uppercase tracking-[0.15em] mb-1">
+                {product.brand}
+              </p>
+            )}
 
             <h1 className="font-display text-3xl lg:text-4xl font-bold text-stone-900 dark:text-stone-100 mb-4">
               {product.name}
@@ -193,6 +217,58 @@ export default function ProductDetailPage() {
                     {f}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Colors */}
+            {product.colors?.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-3">
+                  Color: <span className="text-stone-900 dark:text-stone-100">{product.colors[selectedColor]?.name}</span>
+                </p>
+                <div className="flex gap-3">
+                  {product.colors.map((c, i) => (
+                    <motion.button
+                      key={c.hex}
+                      onClick={() => setSelectedColor(i)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className={`w-9 h-9 rounded-full border-2 transition-all ${
+                        selectedColor === i
+                          ? 'border-orange-500 scale-110 shadow-lg shadow-orange-500/20'
+                          : 'border-stone-200 dark:border-stone-700 hover:border-stone-400'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sizes */}
+            {product.sizes?.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-3">
+                  Size: <span className="text-stone-900 dark:text-stone-100">{product.sizes[selectedSize]}</span>
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {product.sizes.map((s, i) => (
+                    <motion.button
+                      key={s}
+                      onClick={() => setSelectedSize(i)}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl border-2 transition-all ${
+                        selectedSize === i
+                          ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 border-stone-900 dark:border-stone-100 shadow-md'
+                          : 'bg-transparent text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-700 hover:border-stone-400'
+                      }`}
+                    >
+                      {s}
+                    </motion.button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -248,6 +324,30 @@ export default function ProductDetailPage() {
                     ? <HiHeart className="w-6 h-6 text-rose-500" />
                     : <HiOutlineHeart className="w-6 h-6 text-stone-500" />}
                 </button>
+              </div>
+            )}
+
+            {/* Share + Outfit */}
+            {!isSeller && (
+              <div className="flex items-center gap-3 mb-8">
+                <motion.button
+                  onClick={handleShare}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 text-sm font-semibold text-stone-600 dark:text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-all"
+                >
+                  <HiOutlineShare className="w-4 h-4" />
+                  Share
+                </motion.button>
+                <motion.button
+                  onClick={handleAddToOutfit}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 text-sm font-semibold text-stone-600 dark:text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-all"
+                >
+                  <HiOutlineTemplate className="w-4 h-4" />
+                  Add to Outfit
+                </motion.button>
               </div>
             )}
 

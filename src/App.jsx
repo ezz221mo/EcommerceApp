@@ -20,6 +20,8 @@ import ScrollToTop from './components/ui/ScrollToTop';
 import AboutPage from './pages/AboutPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import OutfitPage from './pages/OutfitPage';
+import ComparePage from './pages/ComparePage';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -49,6 +51,9 @@ function AppRoutes() {
         <Route path="/terms-and-conditions" element={<PageWrapper><TermsPage /></PageWrapper>} />
         <Route path="/privacy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
         <Route path="/privacy-policy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
+
+        <Route path="/outfit" element={<PageWrapper><OutfitPage /></PageWrapper>} />
+        <Route path="/compare" element={<PageWrapper><ComparePage /></PageWrapper>} />
 
         <Route path="/cart" element={
           <ProtectedRoute><PageWrapper><CartPage /></PageWrapper></ProtectedRoute>

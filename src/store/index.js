@@ -6,6 +6,7 @@ export const useCartStore = create(
   persist(
     (set, get) => ({
       items: [],
+      coupon: null, // { code, percent }
 
       // Toggle behaviour:
       //   • First click  → adds 1 unit
@@ -17,12 +18,10 @@ export const useCartStore = create(
 
         if (existing) {
           if (toggle) {
-            // Second tap on the card cart button → remove
             set(state => ({
               items: state.items.filter(i => i.id !== product.id),
             }));
           } else {
-            // Stepper increment — respect stock ceiling
             const newQty = Math.min(existing.quantity + quantity, maxStock);
             set(state => ({
               items: state.items.map(i =>
@@ -51,12 +50,48 @@ export const useCartStore = create(
         }));
       },
 
-      clearCart: () => set({ items: [] }),
+      increaseQuantity: (id) => {
+        const item = get().items.find(i => i.id === id);
+        if (!item) return;
+        const maxStock = item.stock ? parseInt(item.stock) : Infinity;
+        if (item.quantity >= maxStock) return;
+        set(state => ({
+          items: state.items.map(i =>
+            i.id === id ? { ...i, quantity: i.quantity + 1 } : i
+          ),
+        }));
+      },
+
+      decreaseQuantity: (id) => {
+        const item = get().items.find(i => i.id === id);
+        if (!item) return;
+        if (item.quantity <= 1) { get().removeItem(id); return; }
+        set(state => ({
+          items: state.items.map(i =>
+            i.id === id ? { ...i, quantity: i.quantity - 1 } : i
+          ),
+        }));
+      },
+
+      clearCart: () => set({ items: [], coupon: null }),
 
       isInCart: (id) => get().items.some(i => i.id === id),
 
+      applyDiscount: ({ code, percent }) => {
+        if (percent <= 0 || percent > 100) return;
+        set({ coupon: { code: code.toUpperCase(), percent } });
+      },
+
+      removeDiscount: () => set({ coupon: null }),
+
       get totalItems() { return get().items.reduce((sum, i) => sum + i.quantity, 0); },
       get totalPrice()  { return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0); },
+      get discount() {
+        const c = get().coupon;
+        if (!c) return 0;
+        return +(get().totalPrice * (c.percent / 100)).toFixed(2);
+      },
+      get grandTotal() { return +(get().totalPrice - get().discount).toFixed(2); },
     }),
     { name: 'luxe-cart' }
   )
@@ -76,6 +111,15 @@ export const useWishlistStore = create(
         }
       },
       isWishlisted: (id) => get().items.some(i => i.id === id),
+      moveToCart: (productId) => {
+        const product = get().items.find(i => i.id === productId);
+        if (!product) return;
+        const { useCartStore } = require('../../store');
+        const { addItem } = useCartStore.getState();
+        addItem(product, 1, false);
+        set(state => ({ items: state.items.filter(i => i.id !== productId) }));
+      },
+      clearWishlist: () => set({ items: [] }),
     }),
     { name: 'luxe-wishlist' }
   )
@@ -231,7 +275,8 @@ export const useProductStore = create(
 
       // ── تهيئة المنتجات الأساسية من ملف البيانات (بس لو مفيش حاجة متخزنة) ──
       initProducts: async () => {
-        if (get()._initialized) return;          // منع التهيئة أكتر من مرة
+        // reload if empty so new sample data always loads
+        if (get()._initialized && get().products.length > 0) return;
         try {
           const { products } = await import('../data/products');
           set({ products, _initialized: true });

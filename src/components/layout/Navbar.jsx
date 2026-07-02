@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon, HiOutlineMenu, HiOutlineX, HiOutlineSearch, HiOutlineViewGrid, HiOutlineLogout, HiOutlineChartBar } from 'react-icons/hi';
+import { HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon, HiOutlineMenu, HiOutlineX, HiOutlineSearch, HiOutlineViewGrid, HiOutlineLogout, HiOutlineChartBar, HiOutlineScale } from 'react-icons/hi';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartStore, useWishlistStore, useThemeStore } from '../../store';
+import useCompare from '../../hooks/useCompare';
 import toast from 'react-hot-toast';
 
 const buyerLinks = [
@@ -33,6 +34,7 @@ export default function Navbar() {
   const wishlistItems = useWishlistStore(s => s.items);
   const { isDark, toggleTheme } = useThemeStore();
   const { currentUser, userData, loading: authLoading, logout: authLogout } = useAuth();
+  const { items: compareItems } = useCompare();
 
   const isSeller = userData?.role === 'seller';
   const isAuthenticated = !!currentUser;
@@ -164,6 +166,20 @@ export default function Navbar() {
                 {isDark ? <HiOutlineSun className="w-5 h-5" /> : <HiOutlineMoon className="w-5 h-5" />}
               </motion.button>
 
+              <Link to="/compare" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-teal-500 hover:bg-teal-50 dark:text-stone-400 dark:hover:text-teal-400 dark:hover:bg-teal-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+                <HiOutlineScale className="w-5 h-5" />
+                {compareItems.length > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 10 }}
+                    className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-teal-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold"
+                  >
+                    {compareItems.length}
+                  </motion.span>
+                )}
+              </Link>
+
               {isAuthenticated && !isSeller && (
                 <Link to="/wishlist" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                   <HiOutlineHeart className="w-5 h-5" />
@@ -244,11 +260,17 @@ export default function Navbar() {
                               <Link to="/seller/dashboard?tab=products" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineViewGrid className="w-4 h-4 text-stone-400" /> My Products
                               </Link>
+                              <Link to="/compare" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                                <HiOutlineScale className="w-4 h-4 text-stone-400" /> Compare {compareItems.length > 0 && (<span className="ml-auto badge bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 text-xs">{compareItems.length}</span>)}
+                              </Link>
                             </>
                           ) : (
                             <>
                               <Link to="/profile" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineUser className="w-4 h-4 text-stone-400" /> My Profile
+                              </Link>
+                              <Link to="/compare" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                                <HiOutlineScale className="w-4 h-4 text-stone-400" /> Compare {compareItems.length > 0 && (<span className="ml-auto badge bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 text-xs">{compareItems.length}</span>)}
                               </Link>
                               <Link to="/wishlist" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineHeart className="w-4 h-4 text-stone-400" /> Wishlist {wishlistItems.length > 0 && (<span className="ml-auto badge bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">{wishlistItems.length}</span>)}
@@ -397,13 +419,21 @@ export default function Navbar() {
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                     {isAuthenticated ? (
                       isSeller ? (
-                        <Link to="/seller/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
-                          <HiOutlineChartBar className="w-5 h-5" /> Dashboard
-                        </Link>
+                        <>
+                          <Link to="/seller/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
+                            <HiOutlineChartBar className="w-5 h-5" /> Dashboard
+                          </Link>
+                          <Link to="/compare" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
+                            <HiOutlineScale className="w-5 h-5" /> Compare ({compareItems.length})
+                          </Link>
+                        </>
                       ) : (
                         <>
                           <Link to="/wishlist" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
                             <HiOutlineHeart className="w-5 h-5" /> Wishlist ({wishlistItems.length})
+                          </Link>
+                          <Link to="/compare" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
+                            <HiOutlineScale className="w-5 h-5" /> Compare ({compareItems.length})
                           </Link>
                           <Link to="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
                             <HiOutlineUser className="w-5 h-5" /> My Profile
