@@ -114,9 +114,7 @@ export const useWishlistStore = create(
       moveToCart: (productId) => {
         const product = get().items.find(i => i.id === productId);
         if (!product) return;
-        const { useCartStore } = require('../../store');
-        const { addItem } = useCartStore.getState();
-        addItem(product, 1, false);
+        useCartStore.getState().addItem(product, 1, false);
         set(state => ({ items: state.items.filter(i => i.id !== productId) }));
       },
       clearWishlist: () => set({ items: [] }),

@@ -1,19 +1,25 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineTrash, HiPlus, HiMinus, HiOutlineShoppingBag, HiArrowRight, HiOutlineShieldCheck, HiOutlineRefresh, HiOutlineTruck } from 'react-icons/hi';
+import { HiOutlineTrash, HiPlus, HiMinus, HiOutlineShoppingBag, HiArrowRight, HiOutlineShieldCheck, HiOutlineRefresh, HiOutlineTruck, HiOutlineTag } from 'react-icons/hi';
 import { useCartStore } from '../store';
 import toast from 'react-hot-toast';
 
 const spring = { type: 'spring', stiffness: 200, damping: 20 };
 
+const VALID_COUPONS = {
+  SAVE10: { percent: 10, description: '10% off your order' },
+  WELCOME20: { percent: 20, description: '20% off for new customers' },
+  FREESHIP: { percent: 15, description: '15% off sitewide' },
+};
+
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, clearCart } = useCartStore();
+  const [couponInput, setCouponInput] = useState('');
+  const { items, removeItem, increaseQuantity, decreaseQuantity, clearCart, coupon, applyDiscount, removeDiscount, totalItems, totalPrice: subtotal, discount, grandTotal } = useCartStore();
   const navigate   = useNavigate();
-  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal   = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const shipping   = subtotal >= 75 ? 0 : 9.99;
   const tax        = subtotal * 0.08;
-  const total      = subtotal + shipping + tax;
+  const total      = grandTotal + shipping + tax;
 
   const handleRemove = (item) => {
     removeItem(item.id);
@@ -21,6 +27,23 @@ export default function CartPage() {
       icon: '\u{1F5D1}\uFE0F',
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
+  };
+
+  const handleApplyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    const valid = VALID_COUPONS[code];
+    if (valid) {
+      applyDiscount({ code, percent: valid.percent });
+      toast.success(`Coupon "${code}" applied! ${valid.description}`, {
+        icon: '\u{1F3AF}',
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    } else {
+      toast.error('Invalid coupon code', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    }
   };
 
   if (items.length === 0) {
@@ -137,7 +160,7 @@ export default function CartPage() {
                         <div className="flex items-center gap-2 bg-stone-100 dark:bg-stone-800 rounded-xl p-1">
                           <motion.button
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => decreaseQuantity(item.id)}
                             className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors"
                           >
                             <HiMinus className="w-3.5 h-3.5" />
@@ -152,7 +175,7 @@ export default function CartPage() {
                           </motion.span>
                           <motion.button
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => increaseQuantity(item.id)}
                             className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors"
                           >
                             <HiPlus className="w-3.5 h-3.5" />
@@ -204,6 +227,20 @@ export default function CartPage() {
                     <span>${tax.toFixed(2)}</span>
                   </div>
 
+                  {coupon && discount > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-between text-green-600 dark:text-green-400 font-medium"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <HiOutlineTag className="w-3.5 h-3.5" />
+                        Discount ({coupon.code})
+                      </span>
+                      <span>-${discount.toFixed(2)}</span>
+                    </motion.div>
+                  )}
+
                   {shipping > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: 5 }}
@@ -229,14 +266,33 @@ export default function CartPage() {
 
                 {/* Coupon */}
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Coupon code" className="input-field text-sm flex-1" />
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="btn-secondary text-sm px-4 whitespace-nowrap"
-                  >
-                    Apply
-                  </motion.button>
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                    placeholder="Coupon code"
+                    className="input-field text-sm flex-1"
+                  />
+                  {coupon ? (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => { removeDiscount(); setCouponInput(''); toast('Discount removed', { icon: '\u{1F5D1}\uFE0F', style: { borderRadius: '12px' } }); }}
+                      className="btn-secondary text-sm px-4 whitespace-nowrap border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400"
+                    >
+                      Remove
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleApplyCoupon}
+                      className="btn-secondary text-sm px-4 whitespace-nowrap"
+                    >
+                      Apply
+                    </motion.button>
+                  )}
                 </div>
 
                 <motion.button

@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineX, HiStar, HiOutlineShoppingCart, HiHeart, HiOutlineHeart,
+  HiPlus, HiMinus, HiOutlineScale,
 } from 'react-icons/hi';
 import { useCartStore, useWishlistStore } from '../../store';
 import { useAuth } from '../../hooks/useAuth';
+import useCompare from '../../hooks/useCompare';
 import toast from 'react-hot-toast';
 
 const overlayVariants = {
@@ -28,23 +30,27 @@ const modalVariants = {
 export default function QuickViewModal({ product, isOpen, onClose }) {
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
+  const [quantity, setQuantity] = useState(1);
 
   const { addItem, isInCart }  = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
+  const { addItem: addCompare, isCompared } = useCompare();
   const { userData }           = useAuth();
 
   const isSeller   = userData?.role === 'seller';
   const inCart     = isInCart(product.id);
   const wishlisted = isWishlisted(product.id);
+  const compared   = isCompared(product.id);
 
+  const maxStock = product.stock ? parseInt(product.stock) : Infinity;
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
 
   const handleAddToCart = () => {
     if (!product.inStock || isSeller) return;
-    addItem(product, 1, false);
-    toast.success(`${product.name} added to cart!`, {
+    addItem(product, quantity, false);
+    toast.success(`${quantity}× ${product.name} added to cart!`, {
       icon: '\u{1F6D2}',
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
@@ -57,6 +63,10 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
       icon: wishlisted ? '\u{1F494}' : '\u2764\uFE0F',
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
+  };
+
+  const handleCompare = () => {
+    addCompare(product);
   };
 
   return (
@@ -167,7 +177,7 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
                 )}
 
                 {product.sizes?.length > 0 && (
-                  <div className="mb-6">
+                  <div className="mb-4">
                     <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
                       Size: <span className="text-stone-800 dark:text-stone-200">{product.sizes[selectedSize]}</span>
                     </p>
@@ -189,13 +199,55 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
                   </div>
                 )}
 
+                {/* Quantity */}
+                {!isSeller && product.inStock && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Quantity</p>
+                    <div className="flex items-center gap-3 bg-stone-100 dark:bg-stone-800 rounded-xl p-1 w-fit">
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                        className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors"
+                      >
+                        <HiMinus className="w-3.5 h-3.5" />
+                      </motion.button>
+                      <span className="w-8 text-center font-semibold text-sm">{quantity}</span>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setQuantity(q => Math.min(q + 1, maxStock))}
+                        disabled={quantity >= maxStock}
+                        className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors disabled:opacity-40"
+                      >
+                        <HiPlus className="w-3.5 h-3.5" />
+                      </motion.button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Compare button */}
+                {!isSeller && (
+                  <div className="mb-4">
+                    <motion.button
+                      onClick={handleCompare}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`text-xs font-medium flex items-center gap-1 transition-colors ${
+                        compared ? 'text-teal-500' : 'text-stone-400 hover:text-teal-500'
+                      }`}
+                    >
+                      <HiOutlineScale className="w-3.5 h-3.5" />
+                      {compared ? 'Comparing' : 'Compare'}
+                    </motion.button>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   {!isSeller && product.inStock && (
                     <button onClick={handleAddToCart}
                       className="btn-primary flex-1 text-sm py-3"
                     >
                       <HiOutlineShoppingCart className="w-4 h-4" />
-                      {inCart ? 'In Cart' : 'Add to Cart'}
+                      {inCart ? 'In Cart' : `Add to Cart — $${(product.price * quantity).toFixed(2)}`}
                     </button>
                   )}
 
