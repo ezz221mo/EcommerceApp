@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -11,6 +11,7 @@ import { useCartStore, useWishlistStore, useProductStore } from '../store';
 import { useAuth } from '../hooks/useAuth';
 import ProductCard from '../components/product/ProductCard';
 import ImageZoom from '../components/product/ImageZoom';
+import useRecentlyViewed from '../hooks/useRecentlyViewed';
 import toast from 'react-hot-toast';
 
 export default function ProductDetailPage() {
@@ -58,6 +59,12 @@ export default function ProductDetailPage() {
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
+
+  const { addItem: addRecent } = useRecentlyViewed();
+
+  useEffect(() => {
+    if (product) addRecent(product);
+  }, [product?.id]);
 
   const maxStock = product.stock ? parseInt(product.stock) : Infinity;
 

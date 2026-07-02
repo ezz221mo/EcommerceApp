@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,7 +12,7 @@ import useCompare from '../../hooks/useCompare';
 import QuickViewModal from './QuickViewModal';
 import toast from 'react-hot-toast';
 
-export default function ProductCard({ product, index = 0 }) {
+const ProductCard = memo(function ProductCard({ product, index = 0 }) {
   const [showQuickView, setShowQuickView] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(true);
 
@@ -318,4 +318,6 @@ export default function ProductCard({ product, index = 0 }) {
     </motion.div>
     </>
   );
-}
+});
+
+export default ProductCard;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineAdjustments, HiOutlineX, HiOutlineSearch, HiOutlineFilter, HiOutlineCheck } from 'react-icons/hi';
+import { HiOutlineAdjustments, HiOutlineX, HiOutlineSearch, HiOutlineFilter } from 'react-icons/hi';
 import ProductCard from '../components/product/ProductCard';
 import ProductSkeleton from '../components/product/ProductSkeleton';
 import RecentlyViewed from '../components/product/RecentlyViewed';
@@ -36,11 +36,24 @@ export default function ProductsPage() {
   const [sidebarOpen,    setSidebarOpen]    = useState(false);
   const [search,         setSearch]         = useState(searchParams.get('search') || '');
   const [selectedCat,    setSelectedCat]    = useState(searchParams.get('cat')    || '');
+  const [selectedBrand,  setSelectedBrand]  = useState('');
   const [selectedPrice,  setSelectedPrice]  = useState(null);
   const [selectedRating, setSelectedRating] = useState(0);
-  const [sort,           setSort]           = useState('featured');
+  const [selectedSize,   setSelectedSize]   = useState('');
+  const [selectedColor,  setSelectedColor]  = useState('');
+  const [sort,           setSort]           = useState('newest');
 
-  const products = useProductStore(s => s.products);
+  const products       = useProductStore(s => s.products);
+  const { items: recentItems, addItem: addRecent, clearAll: clearRecent } = useRecentlyViewed();
+
+  const availableFilters = useMemo(() => {
+    const brands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort();
+    const sizes  = [...new Set(products.flatMap(p => p.sizes || []))].sort();
+    const colors = [...new Map(
+      products.flatMap(p => p.colors || []).map(c => [c.hex, c])
+    ).values()];
+    return { brands, sizes, colors };
+  }, [products]);
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 700);
@@ -55,14 +68,21 @@ export default function ProductsPage() {
   const filtered = useMemo(() => {
     let result = [...products];
 
-    if (search)
+    if (search) {
+      const q = search.toLowerCase();
       result = result.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.category?.toLowerCase().includes(search.toLowerCase())
+        p.name.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q) ||
+        (p.brand || '').toLowerCase().includes(q) ||
+        (p.tags || []).some(t => t.toLowerCase().includes(q))
       );
+    }
 
     if (selectedCat)
       result = result.filter(p => p.category === selectedCat);
+
+    if (selectedBrand)
+      result = result.filter(p => p.brand === selectedBrand);
 
     if (selectedPrice)
       result = result.filter(p => p.price >= selectedPrice.min && p.price < selectedPrice.max);
@@ -70,26 +90,38 @@ export default function ProductsPage() {
     if (selectedRating > 0)
       result = result.filter(p => p.rating >= selectedRating);
 
+    if (selectedSize)
+      result = result.filter(p => (p.sizes || []).includes(selectedSize));
+
+    if (selectedColor)
+      result = result.filter(p => (p.colors || []).some(c => c.hex === selectedColor));
+
     switch (sort) {
       case 'price-asc':  result.sort((a, b) => a.price - b.price);   break;
       case 'price-desc': result.sort((a, b) => b.price - a.price);   break;
       case 'rating':     result.sort((a, b) => b.rating - a.rating); break;
       case 'newest':     result.sort((a, b) =>
         new Date(b.createdAt || 0) - new Date(a.createdAt || 0));    break;
+      case 'oldest':     result.sort((a, b) =>
+        new Date(a.createdAt || 0) - new Date(b.createdAt || 0));    break;
+      case 'best-selling': result.sort((a, b) => (b.reviews || 0) - (a.reviews || 0)); break;
     }
 
     return result;
-  }, [products, search, selectedCat, selectedPrice, selectedRating, sort]);
+  }, [products, search, selectedCat, selectedBrand, selectedPrice, selectedRating, selectedSize, selectedColor, sort]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSelectedCat('');
+    setSelectedBrand('');
     setSelectedPrice(null);
     setSelectedRating(0);
+    setSelectedSize('');
+    setSelectedColor('');
     setSearch('');
     setSearchParams({});
-  };
+  }, []);
 
-  const hasFilters = selectedCat || selectedPrice || selectedRating || search;
+  const hasFilters = selectedCat || selectedBrand || selectedPrice || selectedRating || selectedSize || selectedColor || search;
 
   const Sidebar = () => (
     <div className="space-y-8">
@@ -167,6 +199,45 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Brand */}
+      {availableFilters.brands.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-3 flex items-center gap-2">
+            <span className="w-1 h-4 bg-violet-500 rounded-full" />
+            Brand
+          </h3>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            <motion.button
+              custom={0} variants={filterVariants} initial="hidden" animate="visible"
+              onClick={() => setSelectedBrand('')}
+              className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-all ${
+                !selectedBrand
+                  ? 'bg-orange-50 text-orange-600 font-semibold dark:bg-orange-950/30 dark:text-orange-400'
+                  : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800/60'
+              }`}
+            >
+              All Brands
+            </motion.button>
+            {availableFilters.brands.map((brand, i) => (
+              <motion.button
+                key={brand}
+                custom={i + 1}
+                variants={filterVariants}
+                initial="hidden" animate="visible"
+                onClick={() => setSelectedBrand(selectedBrand === brand ? '' : brand)}
+                className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-all ${
+                  selectedBrand === brand
+                    ? 'bg-orange-50 text-orange-600 font-semibold dark:bg-orange-950/30 dark:text-orange-400'
+                    : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800/60'
+                }`}
+              >
+                {brand}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Rating */}
       <div>
         <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-3 flex items-center gap-2">
@@ -198,6 +269,62 @@ export default function ProductsPage() {
           ))}
         </div>
       </div>
+
+      {/* Size */}
+      {availableFilters.sizes.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-3 flex items-center gap-2">
+            <span className="w-1 h-4 bg-sky-500 rounded-full" />
+            Size
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {availableFilters.sizes.map((size, i) => (
+              <motion.button
+                key={size}
+                custom={i}
+                variants={filterVariants}
+                initial="hidden" animate="visible"
+                onClick={() => setSelectedSize(selectedSize === size ? '' : size)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                  selectedSize === size
+                    ? 'bg-stone-900 text-white border-stone-900 dark:bg-stone-100 dark:text-stone-900 dark:border-stone-100'
+                    : 'bg-transparent text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-700 hover:border-stone-400'
+                }`}
+              >
+                {size}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Color */}
+      {availableFilters.colors.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-3 flex items-center gap-2">
+            <span className="w-1 h-4 bg-pink-500 rounded-full" />
+            Color
+          </h3>
+          <div className="flex flex-wrap gap-2.5">
+            {availableFilters.colors.map((c, i) => (
+              <motion.button
+                key={c.hex}
+                custom={i}
+                variants={filterVariants}
+                initial="hidden" animate="visible"
+                onClick={() => setSelectedColor(selectedColor === c.hex ? '' : c.hex)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  selectedColor === c.hex
+                    ? 'border-orange-500 scale-110 shadow-lg shadow-orange-500/20'
+                    : 'border-stone-200 dark:border-stone-700 hover:border-stone-400'
+                }`}
+                style={{ backgroundColor: c.hex }}
+                title={c.name}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {hasFilters && (
         <motion.button
@@ -332,6 +459,9 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
+
+      {/* Recently Viewed */}
+      <RecentlyViewed items={recentItems} onClear={clearRecent} />
 
       {/* Mobile Filter Drawer */}
       <AnimatePresence>
