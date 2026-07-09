@@ -7,6 +7,7 @@ import {
   createUserDocument,
   updateUserDocument,
 } from '../services/userService';
+import { useCartStore } from '../store';
 
 export const AuthContext = createContext(null);
 
@@ -36,6 +37,8 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const result = await loginUser(email, password);
     const data = await getUserDocument(result.user.uid);
+    useCartStore.getState().clearCart();
+    console.log('[Auth] Login — cart cleared for new user');
     setUserData(data);
     return data;
   }, []);
@@ -59,6 +62,8 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     await logoutUser();
+    useCartStore.getState().clearCart();
+    console.log('[Auth] Logout — cart cleared');
     setCurrentUser(null);
     setUserData(null);
   }, []);

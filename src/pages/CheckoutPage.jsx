@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { HiOutlineClipboardCheck, HiOutlineArrowLeft, HiOutlineLockClosed, HiOutlineTruck, HiOutlineCreditCard, HiOutlineCheckCircle, HiOutlineShieldCheck } from 'react-icons/hi';
+import { HiOutlineClipboardCheck, HiOutlineArrowLeft, HiOutlineLockClosed, HiOutlineTruck, HiOutlineCreditCard, HiOutlineCheckCircle, HiOutlineShieldCheck, HiOutlineTag, HiOutlineX } from 'react-icons/hi';
 import { useCartStore, useOrderStore } from '../store';
 import { useAuth } from '../hooks/useAuth';
+import { validateCoupon, incrementCouponUsage } from '../services/couponService';
 import toast from 'react-hot-toast';
 
 const steps = [
@@ -16,12 +17,15 @@ const spring = { type: 'spring', stiffness: 150, damping: 18 };
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { items, clearCart } = useCartStore();
+  const { items, coupon, clearCart, applyDiscount, removeDiscount } = useCartStore();
+  const discount = useCartStore(s => s.discount);
   const { userData } = useAuth();
   const { placeOrder } = useOrderStore();
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('shipping');
+  const [couponInput, setCouponInput] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
   const [form, setForm] = useState({
     fullName: userData?.name || '',
     email: userData?.email || '',
@@ -36,9 +40,51 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const shipping = subtotal >= 75 ? 0 : 9.99;
   const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
+  const total = subtotal + shipping + tax - discount;
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    console.log('[Checkout] Applying coupon:', code, '| subtotal:', subtotal);
+    if (!code) return;
+    setCouponLoading(true);
+    try {
+      const result = await validateCoupon(code, subtotal);
+      console.log('[Checkout] validateCoupon result:', result);
+      if (!result.valid) {
+        console.warn('[Checkout] Coupon rejected:', result.reason);
+        toast.error(result.reason, {
+          style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+        });
+        return;
+      }
+      const c = result.coupon;
+      let percent = 0;
+      let value = 0;
+      if (c.type === 'percentage') {
+        percent = c.value;
+      } else if (c.type === 'fixed') {
+        value = c.value;
+      } else if (c.type === 'free_shipping') {
+        value = shipping;
+      }
+      console.log('[Checkout] Applying discount — type:', c.type, 'percent:', percent, 'value:', value);
+      applyDiscount({ code, percent, type: c.type, value, description: c.description });
+      toast.success(`Coupon "${code}" applied! ${c.description}`, {
+        icon: '\u{1F3AF}',
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+      setCouponInput('');
+    } catch (err) {
+      console.error('[Checkout] Coupon validation error:', err);
+      const msg = err?.message || err?.toString() || 'Failed to validate coupon. Please try again.';
+      toast.error(msg, {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    }
+    setCouponLoading(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,6 +113,10 @@ export default function CheckoutPage() {
       tax,
       total,
     });
+
+    if (coupon?.code) {
+      incrementCouponUsage(coupon.code).catch(() => {});
+    }
 
     clearCart();
     setLoading(false);
@@ -336,6 +386,54 @@ export default function CheckoutPage() {
                   ))}
                   {items.length > 4 && (
                     <p className="text-xs text-stone-400 text-center">+{items.length - 4} more items</p>
+                  )}
+                </div>
+
+                {/* Coupon */}
+                <div className="border-t border-stone-200 dark:border-stone-700 pt-4 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                      placeholder="Coupon code"
+                      className="input-field text-sm flex-1"
+                    />
+                    {coupon ? (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => { removeDiscount(); setCouponInput(''); toast('Discount removed', { icon: '\u{1F5D1}\uFE0F', style: { borderRadius: '12px' } }); }}
+                        className="btn-secondary text-sm px-3 whitespace-nowrap border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400"
+                      >
+                        <HiOutlineX className="w-4 h-4" />
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading}
+                        className="btn-secondary text-sm px-3 whitespace-nowrap"
+                      >
+                        {couponLoading ? (
+                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : 'Apply'}
+                      </motion.button>
+                    )}
+                  </div>
+                  {coupon && discount > 0 && (
+                    <div className="flex items-center justify-between text-green-600 dark:text-green-400 text-sm font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <HiOutlineTag className="w-3.5 h-3.5" />
+                        {coupon.code}
+                      </span>
+                      <span>-${discount.toFixed(2)}</span>
+                    </div>
                   )}
                 </div>
 

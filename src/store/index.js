@@ -1,101 +1,118 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Cart Store
-export const useCartStore = create(
-  persist(
-    (set, get) => ({
-      items: [],
-      coupon: null, // { code, percent }
+// ── Clean up old shared cart key from localStorage ───────────────────────────
+try {
+  const oldCart = localStorage.getItem('luxe-cart');
+  if (oldCart) {
+    localStorage.removeItem('luxe-cart');
+    console.log('[Cart] Removed shared localStorage key luxe-cart — cart is now session-scoped');
+  }
+} catch (e) {
+  console.warn('[Cart] Could not clean up localStorage:', e);
+}
 
-      // Toggle behaviour:
-      //   • First click  → adds 1 unit
-      //   • Second click (same product, no explicit quantity) → removes it
-      // Direct quantity calls (from CartPage stepper) always set the value.
-      addItem: (product, quantity = 1, toggle = false) => {
-        const maxStock = product.stock ? parseInt(product.stock) : Infinity;
-        const existing = get().items.find(i => i.id === product.id);
+// Cart Store (NOT persisted — each user/tab gets an independent in-memory cart)
+export const useCartStore = create((set, get) => ({
+  items: [],
+  coupon: null, // { code, percent, type, value, description }
 
-        if (existing) {
-          if (toggle) {
-            set(state => ({
-              items: state.items.filter(i => i.id !== product.id),
-            }));
-          } else {
-            const newQty = Math.min(existing.quantity + quantity, maxStock);
-            set(state => ({
-              items: state.items.map(i =>
-                i.id === product.id ? { ...i, quantity: newQty } : i
-              ),
-            }));
-          }
-        } else {
-          const cappedQty = Math.min(quantity, maxStock);
-          set(state => ({
-            items: [...state.items, { ...product, quantity: cappedQty }],
-          }));
-        }
-      },
+  // Toggle behaviour:
+  //   • First click  → adds 1 unit
+  //   • Second click (same product, no explicit quantity) → removes it
+  // Direct quantity calls (from CartPage stepper) always set the value.
+  addItem: (product, quantity = 1, toggle = false) => {
+    const maxStock = product.stock ? parseInt(product.stock) : Infinity;
+    const existing = get().items.find(i => i.id === product.id);
 
-      removeItem: (id) =>
-        set(state => ({ items: state.items.filter(i => i.id !== id) })),
-
-      updateQuantity: (id, quantity) => {
-        if (quantity <= 0) { get().removeItem(id); return; }
-        const item     = get().items.find(i => i.id === id);
-        const maxStock = item?.stock ? parseInt(item.stock) : Infinity;
-        const capped   = Math.min(quantity, maxStock);
+    if (existing) {
+      if (toggle) {
         set(state => ({
-          items: state.items.map(i => i.id === id ? { ...i, quantity: capped } : i),
+          items: state.items.filter(i => i.id !== product.id),
         }));
-      },
-
-      increaseQuantity: (id) => {
-        const item = get().items.find(i => i.id === id);
-        if (!item) return;
-        const maxStock = item.stock ? parseInt(item.stock) : Infinity;
-        if (item.quantity >= maxStock) return;
+      } else {
+        const newQty = Math.min(existing.quantity + quantity, maxStock);
         set(state => ({
           items: state.items.map(i =>
-            i.id === id ? { ...i, quantity: i.quantity + 1 } : i
+            i.id === product.id ? { ...i, quantity: newQty } : i
           ),
         }));
-      },
+      }
+    } else {
+      const cappedQty = Math.min(quantity, maxStock);
+      set(state => ({
+        items: [...state.items, { ...product, quantity: cappedQty }],
+      }));
+    }
+  },
 
-      decreaseQuantity: (id) => {
-        const item = get().items.find(i => i.id === id);
-        if (!item) return;
-        if (item.quantity <= 1) { get().removeItem(id); return; }
-        set(state => ({
-          items: state.items.map(i =>
-            i.id === id ? { ...i, quantity: i.quantity - 1 } : i
-          ),
-        }));
-      },
+  removeItem: (id) =>
+    set(state => ({ items: state.items.filter(i => i.id !== id) })),
 
-      clearCart: () => set({ items: [], coupon: null }),
+  updateQuantity: (id, quantity) => {
+    if (quantity <= 0) { get().removeItem(id); return; }
+    const item     = get().items.find(i => i.id === id);
+    const maxStock = item?.stock ? parseInt(item.stock) : Infinity;
+    const capped   = Math.min(quantity, maxStock);
+    set(state => ({
+      items: state.items.map(i => i.id === id ? { ...i, quantity: capped } : i),
+    }));
+  },
 
-      isInCart: (id) => get().items.some(i => i.id === id),
+  increaseQuantity: (id) => {
+    const item = get().items.find(i => i.id === id);
+    if (!item) return;
+    const maxStock = item.stock ? parseInt(item.stock) : Infinity;
+    if (item.quantity >= maxStock) return;
+    set(state => ({
+      items: state.items.map(i =>
+        i.id === id ? { ...i, quantity: i.quantity + 1 } : i
+      ),
+    }));
+  },
 
-      applyDiscount: ({ code, percent }) => {
-        if (percent <= 0 || percent > 100) return;
-        set({ coupon: { code: code.toUpperCase(), percent } });
-      },
+  decreaseQuantity: (id) => {
+    const item = get().items.find(i => i.id === id);
+    if (!item) return;
+    if (item.quantity <= 1) { get().removeItem(id); return; }
+    set(state => ({
+      items: state.items.map(i =>
+        i.id === id ? { ...i, quantity: i.quantity - 1 } : i
+      ),
+    }));
+  },
 
-      removeDiscount: () => set({ coupon: null }),
+  clearCart: () => set({ items: [], coupon: null }),
 
-      get totalItems() { return get().items.reduce((sum, i) => sum + i.quantity, 0); },
-      get totalPrice()  { return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0); },
-      get discount() {
-        const c = get().coupon;
-        if (!c) return 0;
-        return +(get().totalPrice * (c.percent / 100)).toFixed(2);
-      },
-      get grandTotal() { return +(get().totalPrice - get().discount).toFixed(2); },
-    }),
-    { name: 'luxe-cart' }
-  )
-);
+  isInCart: (id) => get().items.some(i => i.id === id),
+
+  applyDiscount: ({ code, percent, type, value, description }) => {
+    const t = type || 'percentage';
+    if (t === 'percentage' && (percent <= 0 || percent > 100)) return;
+    if (t === 'fixed' && (value <= 0)) return;
+    if (t === 'free_shipping' && (value <= 0)) return;
+    set({ coupon: { code: code.toUpperCase(), percent: percent || 0, type: t, value: value || 0, description: description || '' } });
+  },
+
+  removeDiscount: () => set({ coupon: null }),
+
+  get totalItems() { return get().items.reduce((sum, i) => sum + i.quantity, 0); },
+  get totalPrice()  { return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0); },
+  get discount() {
+    const c = get().coupon;
+    if (!c) return 0;
+    const total = get().totalPrice;
+    switch (c.type) {
+      case 'fixed':
+        return Math.min(c.value, total);
+      case 'free_shipping':
+        return c.value || 0;
+      default:
+        return +(total * (c.percent / 100)).toFixed(2);
+    }
+  },
+  get grandTotal() { return +(get().totalPrice - get().discount).toFixed(2); },
+}));
 
 // Wishlist Store
 export const useWishlistStore = create(
