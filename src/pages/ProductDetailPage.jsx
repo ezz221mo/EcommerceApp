@@ -11,6 +11,7 @@ import { useCartStore, useWishlistStore, useProductStore } from '../store';
 import { useAuth } from '../hooks/useAuth';
 import ProductCard from '../components/product/ProductCard';
 import ImageZoom from '../components/product/ImageZoom';
+import ProductReviews from '../components/product/ProductReviews';
 import useRecentlyViewed from '../hooks/useRecentlyViewed';
 import toast from 'react-hot-toast';
 
@@ -371,6 +372,9 @@ export default function ProductDetailPage() {
             </div>
           </motion.div>
         </div>
+
+        {/* Reviews & Rating */}
+        <ProductReviews product={product} />
 
         {/* Related Products */}
         {related.length > 0 && (

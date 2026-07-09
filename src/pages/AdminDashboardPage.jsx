@@ -26,25 +26,35 @@ export default function AdminDashboardPage() {
   const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setAppLoading(true);
+      try {
+        const [pending, approved, rejected] = await Promise.all([
+          getSellerApplicationsByStatus('Pending'),
+          getSellerApplicationsByStatus('Approved'),
+          getSellerApplicationsByStatus('Rejected'),
+        ]);
+        if (!cancelled) setApplications({ pending, approved, rejected });
+      } catch {
+        if (!cancelled) toast.error('Failed to load applications', { style: { borderRadius: '12px' } });
+      }
+      if (!cancelled) setAppLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const refreshApps = async () => {
+    try {
       const [pending, approved, rejected] = await Promise.all([
         getSellerApplicationsByStatus('Pending'),
         getSellerApplicationsByStatus('Approved'),
         getSellerApplicationsByStatus('Rejected'),
       ]);
       setApplications({ pending, approved, rejected });
-      setAppLoading(false);
-    })();
-  }, []);
-
-  const refreshApps = async () => {
-    const [pending, approved, rejected] = await Promise.all([
-      getSellerApplicationsByStatus('Pending'),
-      getSellerApplicationsByStatus('Approved'),
-      getSellerApplicationsByStatus('Rejected'),
-    ]);
-    setApplications({ pending, approved, rejected });
+    } catch {
+      toast.error('Failed to refresh applications', { style: { borderRadius: '12px' } });
+    }
   };
 
   const handleApprove = async (app) => {

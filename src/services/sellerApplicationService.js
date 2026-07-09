@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, updateDoc, query, collection, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 
 const COLLECTION = 'sellerApplications';
@@ -22,22 +22,14 @@ export async function createSellerApplication(uid, name, email, data) {
 }
 
 export async function getSellerApplicationByUser(uid) {
-  const q = query(
-    collection(db, COLLECTION),
-    where('uid', '==', uid),
-    orderBy('submittedAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
-  const docSnap = snapshot.docs[0];
-  return { id: docSnap.id, ...docSnap.data() };
+  const snap = await getDoc(doc(db, COLLECTION, uid));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
 export async function getSellerApplicationsByStatus(status) {
   const q = query(
     collection(db, COLLECTION),
-    where('status', '==', status),
-    orderBy('submittedAt', 'desc')
+    where('status', '==', status)
   );
   const snapshot = await getDocs(q);
   const apps = [];
@@ -55,6 +47,11 @@ export async function getSellerApplicationsByStatus(status) {
     }
     apps.push({ id: docSnap.id, ...data, userName, userEmail });
   }
+  apps.sort((a, b) => {
+    const aTime = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt || 0);
+    const bTime = b.submittedAt?.toDate ? b.submittedAt.toDate() : new Date(b.submittedAt || 0);
+    return bTime - aTime;
+  });
   return apps;
 }
 

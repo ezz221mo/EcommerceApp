@@ -72,6 +72,13 @@ export function AuthProvider({ children }) {
     setUserData(updated);
   }, [currentUser]);
 
+  const refreshUserData = useCallback(async () => {
+    if (!currentUser) return null;
+    const data = await getUserDocument(currentUser.uid);
+    setUserData(data);
+    return data;
+  }, [currentUser]);
+
   const value = {
     currentUser,
     userData,
@@ -81,6 +88,7 @@ export function AuthProvider({ children }) {
     register,
     logout,
     becomeSeller,
+    refreshUserData,
   };
 
   return (

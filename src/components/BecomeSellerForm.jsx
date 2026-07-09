@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineCheck, HiOutlineX, HiOutlineSelector, HiOutlineSearch } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
@@ -11,8 +12,9 @@ function validateEgyptianPhone(phone) {
   return /^01[0125]\d{8}$/.test(cleaned);
 }
 
-export default function BecomeSellerForm() {
-  const { currentUser, userData, becomeSeller } = useAuth();
+export default function BecomeSellerForm({ onClose }) {
+  const { currentUser, userData, refreshUserData } = useAuth();
+  const navigate = useNavigate();
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -33,25 +35,39 @@ export default function BecomeSellerForm() {
     if (!currentUser) return;
     let cancelled = false;
     (async () => {
-      const app = await getSellerApplicationByUser(currentUser.uid);
-      if (cancelled) return;
-      setApplication(app);
-      if (app && app.status === 'Approved' && userData?.role !== 'seller') {
-        await becomeSeller();
+      try {
+        const app = await getSellerApplicationByUser(currentUser.uid);
+        if (cancelled) return;
+        setApplication(app);
+        if (app && app.status === 'Approved' && userData?.role !== 'seller') {
+          const fresh = await refreshUserData();
+          if (fresh?.role === 'seller' && !cancelled) {
+            navigate('/dashboard/seller');
+            return;
+          }
+        }
+        if (app && app.status === 'Rejected') {
+          setForm({
+            storeName: app.storeName || '',
+            storeDescription: app.storeDescription || '',
+            phone: app.phone || '',
+            governorate: app.governorate || '',
+            fullAddress: app.fullAddress || '',
+          });
+        }
+        if (!cancelled) setLoading(false);
+      } catch (err) {
+        if (!cancelled) {
+          setLoading(false);
+          setApplication(null);
+          toast.error('Could not load application status. Please try again.', {
+            style: { borderRadius: '12px' },
+          });
+        }
       }
-      if (app && app.status === 'Rejected') {
-        setForm({
-          storeName: app.storeName || '',
-          storeDescription: app.storeDescription || '',
-          phone: app.phone || '',
-          governorate: app.governorate || '',
-          fullAddress: app.fullAddress || '',
-        });
-      }
-      if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [currentUser, becomeSeller]);
+  }, [currentUser, refreshUserData]);
 
   useEffect(() => {
     const handler = (e) => {
