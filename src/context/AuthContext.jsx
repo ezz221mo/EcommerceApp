@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
         try {
           const data = await getUserDocument(firebaseUser.uid);
           setUserData(data);
-        } catch (err) {
+        } catch {
           setUserData(null);
         }
       } else {
@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
     const result = await loginUser(email, password);
     const data = await getUserDocument(result.user.uid);
     setUserData(data);
-    return result.user;
+    return data;
   }, []);
 
   const register = useCallback(async (name, email, password) => {
@@ -52,8 +52,9 @@ export function AuthProvider({ children }) {
     };
     await createUserDocument(result.user.uid, name, email);
     const docSnap = await getUserDocument(result.user.uid);
-    setUserData(docSnap || userDataObj);
-    return result.user;
+    const data = docSnap || userDataObj;
+    setUserData(data);
+    return data;
   }, []);
 
   const logout = useCallback(async () => {

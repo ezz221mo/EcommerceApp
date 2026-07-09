@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, getDoc, getDocs, updateDoc, query, where, orderBy, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 
 const COLLECTION = 'sellerApplications';
@@ -17,8 +17,8 @@ export async function createSellerApplication(uid, name, email, data) {
     rejectionReason: null,
     submittedAt: serverTimestamp(),
   };
-  const docRef = await addDoc(collection(db, COLLECTION), appData);
-  return { id: docRef.id, ...appData, submittedAt: new Date().toISOString() };
+  await setDoc(doc(db, COLLECTION, uid), appData);
+  return { id: uid, ...appData, submittedAt: new Date().toISOString() };
 }
 
 export async function getSellerApplicationByUser(uid) {

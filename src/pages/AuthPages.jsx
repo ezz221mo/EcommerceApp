@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff,
@@ -27,7 +27,7 @@ const FieldError = ({ msg }) =>
     </motion.p>
   ) : null;
 
-const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const PWD_MIX_RE = /^(?=.*[A-Za-z])(?=.*\d).+$/;
 
 function validateLogin({ email, password }) {
@@ -95,17 +95,16 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const { login: authLogin, userData } = useAuth();
+  const { login: authLogin } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   // After login, navigate by role — ProtectedRoute handles gating
-  const getRoleDashboard = () => {
-    if (!userData) return '/';
-    switch (userData.role) {
+  const getRoleDashboard = (data) => {
+    if (!data) return '/';
+    switch (data.role) {
       case 'admin':  return '/dashboard/admin';
       case 'seller': return '/dashboard/seller';
-      case 'buyer':  return '/dashboard/buyer';
+      case 'buyer':  return '/profile';
       default:       return '/';
     }
   };
@@ -122,11 +121,11 @@ export function LoginPage() {
 
     setSubmitting(true);
     try {
-      await authLogin(form.email.trim(), form.password);
+      const data = await authLogin(form.email.trim(), form.password);
       toast.success('Welcome back! 👋', {
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
-      navigate(getRoleDashboard(), { replace: true });
+      navigate(getRoleDashboard(data), { replace: true });
     } catch (err) {
       const code = err.code;
       if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
@@ -226,7 +225,7 @@ export function RegisterPage() {
       toast.success('Account created! Welcome to LuxeShop 🎉', {
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
-      navigate('/dashboard/buyer');
+      navigate('/');
     } catch (err) {
       const code = err.code;
       if (code === 'auth/email-already-in-use') {

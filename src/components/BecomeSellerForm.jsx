@@ -12,7 +12,7 @@ function validateEgyptianPhone(phone) {
 }
 
 export default function BecomeSellerForm() {
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, becomeSeller } = useAuth();
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -31,9 +31,14 @@ export default function BecomeSellerForm() {
 
   useEffect(() => {
     if (!currentUser) return;
+    let cancelled = false;
     (async () => {
       const app = await getSellerApplicationByUser(currentUser.uid);
+      if (cancelled) return;
       setApplication(app);
+      if (app && app.status === 'Approved' && userData?.role !== 'seller') {
+        await becomeSeller();
+      }
       if (app && app.status === 'Rejected') {
         setForm({
           storeName: app.storeName || '',
@@ -43,9 +48,10 @@ export default function BecomeSellerForm() {
           fullAddress: app.fullAddress || '',
         });
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
-  }, [currentUser]);
+    return () => { cancelled = true; };
+  }, [currentUser, becomeSeller]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -83,7 +89,7 @@ export default function BecomeSellerForm() {
         setApplication(newApp);
         toast.success('Application submitted successfully!', { style: { borderRadius: '12px' } });
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to submit application. Please try again.', { style: { borderRadius: '12px' } });
     }
     setSubmitting(false);

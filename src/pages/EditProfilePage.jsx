@@ -84,7 +84,7 @@ export default function EditProfilePage() {
       toast.success('Profile updated successfully! ✅', {
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
-    } catch (err) {
+    } catch {
       toast.error('Failed to update profile. Please try again.', {
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });

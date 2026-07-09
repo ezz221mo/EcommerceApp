@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon, HiOutlineMenu, HiOutlineX, HiOutlineSearch, HiOutlineViewGrid, HiOutlineLogout, HiOutlineChartBar, HiOutlineScale } from 'react-icons/hi';
+import { HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon, HiOutlineMenu, HiOutlineX, HiOutlineSearch, HiOutlineViewGrid, HiOutlineLogout, HiOutlineChartBar, HiOutlineScale, HiOutlineClipboardList } from 'react-icons/hi';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartStore, useWishlistStore, useThemeStore } from '../../store';
 import useCompare from '../../hooks/useCompare';
-import toast from 'react-hot-toast';
 
 const buyerLinks = [
   { to: '/', label: 'Home', end: true },
@@ -19,13 +18,7 @@ const sellerLinks = [
   { to: '/products', label: 'Browse', end: false },
 ];
 
-const buyerLinksWithDashboard = [
-  { to: '/', label: 'Home', end: true },
-  { to: '/dashboard/buyer', label: 'Dashboard', end: false },
-  { to: '/products', label: 'Products', end: false },
-  { to: '/products?cat=electronics', label: 'Electronics', end: false },
-  { to: '/products?cat=fashion', label: 'Fashion', end: false },
-];
+// buyerLinks is used for buyers — NO dashboard link (buyer uses Profile page)
 
 const spring = { type: 'spring', stiffness: 300, damping: 30 };
 
@@ -41,7 +34,7 @@ export default function Navbar() {
   const cartItems = useCartStore(s => s.items);
   const wishlistItems = useWishlistStore(s => s.items);
   const { isDark, toggleTheme } = useThemeStore();
-  const { currentUser, userData, loading: authLoading, logout: authLogout } = useAuth();
+  const { currentUser, userData, logout: authLogout } = useAuth();
   const { items: compareItems } = useCompare();
 
   const isSeller = userData?.role === 'seller';
@@ -53,7 +46,7 @@ export default function Navbar() {
         { to: '/products', label: 'Products', end: false },
         { to: '/dashboard/admin', label: 'Admin', end: false },
       ]
-    : isSeller ? sellerLinks : buyerLinksWithDashboard;
+    : isSeller ? sellerLinks : buyerLinks;
   const totalItems = cartItems.reduce((sum, i) => sum + i.quantity, 0);
   const hideSearch = location.pathname === '/login' || location.pathname === '/register' || location.pathname.includes('/dashboard');
 
@@ -78,7 +71,14 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handler);
   }, [userMenuOpen]);
 
-  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+  const prevPath = useRef(location.pathname);
+  useEffect(() => {
+    if (prevPath.current !== location.pathname) {
+      setMobileOpen(false);
+      setUserMenuOpen(false);
+      prevPath.current = location.pathname;
+    }
+  }, [location.pathname]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -260,12 +260,10 @@ export default function Navbar() {
                     </span>
                   </motion.button>
 
-                  <AnimatePresence>
-                    {userMenuOpen && (
+                  {userMenuOpen && (
                       <motion.div
                         initial={{ opacity: 0, y: 8, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                         className="absolute right-0 top-full mt-2 w-52 card shadow-xl py-2 z-50 overflow-hidden"
                       >
@@ -279,34 +277,34 @@ export default function Navbar() {
                         <div className="py-1">
                           {isAdmin ? (
                             <>
-                              <Link to="/dashboard/admin" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/dashboard/admin" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineChartBar className="w-4 h-4 text-stone-400" /> Admin Dashboard
                               </Link>
-                              <Link to="/dashboard/admin?tab=applications" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/dashboard/admin?tab=applications" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineClipboardList className="w-4 h-4 text-stone-400" /> Seller Applications
                               </Link>
                             </>
                           ) : isSeller ? (
                             <>
-                              <Link to="/dashboard/seller" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/dashboard/seller" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineChartBar className="w-4 h-4 text-stone-400" /> Dashboard
                               </Link>
-                              <Link to="/dashboard/seller?tab=products" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/dashboard/seller?tab=products" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineViewGrid className="w-4 h-4 text-stone-400" /> My Products
                               </Link>
-                              <Link to="/compare" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/compare" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineScale className="w-4 h-4 text-stone-400" /> Compare {compareItems.length > 0 && (<span className="ml-auto badge bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 text-xs">{compareItems.length}</span>)}
                               </Link>
                             </>
                           ) : (
                             <>
-                              <Link to="/profile" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineUser className="w-4 h-4 text-stone-400" /> My Profile
                               </Link>
-                              <Link to="/compare" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/compare" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineScale className="w-4 h-4 text-stone-400" /> Compare {compareItems.length > 0 && (<span className="ml-auto badge bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 text-xs">{compareItems.length}</span>)}
                               </Link>
-                              <Link to="/wishlist" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <Link to="/wishlist" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineHeart className="w-4 h-4 text-stone-400" /> Wishlist {wishlistItems.length > 0 && (<span className="ml-auto badge bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">{wishlistItems.length}</span>)}
                               </Link>
                             </>
@@ -319,7 +317,6 @@ export default function Navbar() {
                         </div>
                       </motion.div>
                     )}
-                  </AnimatePresence>
                 </div>
               ) : (
                 <Link to="/login" className={`hidden sm:flex p-2 rounded-xl transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>

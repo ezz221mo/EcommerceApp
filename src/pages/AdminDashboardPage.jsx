@@ -1,26 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineUsers, HiOutlineShoppingBag, HiOutlineViewGrid, HiOutlineClipboardList,
   HiOutlineCurrencyDollar, HiOutlineChartBar, HiOutlineTag, HiOutlineX, HiOutlineCheck,
-  HiOutlineArchive, HiOutlineRefresh, HiOutlineSearch,
 } from 'react-icons/hi';
-import { useAuth } from '../hooks/useAuth';
 import { useProductStore, useOrderStore } from '../store';
 import {
   getSellerApplicationsByStatus,
   approveSellerApplication,
   rejectSellerApplication,
 } from '../services/sellerApplicationService';
-import { egyptianGovernorates } from '../data/governorates';
 import toast from 'react-hot-toast';
 
 export default function AdminDashboardPage() {
-  const { currentUser, userData } = useAuth();
   const allProducts = useProductStore(s => s.products);
   const allOrders = useOrderStore(s => s.orders);
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
   const setTab = (key) => setSearchParams(key === 'overview' ? {} : { tab: key });
@@ -57,7 +52,7 @@ export default function AdminDashboardPage() {
       await approveSellerApplication(app.id, app.uid);
       toast.success(`Approved ${app.storeName}`, { style: { borderRadius: '12px' } });
       refreshApps();
-    } catch (err) {
+    } catch {
       toast.error('Failed to approve', { style: { borderRadius: '12px' } });
     }
   };
@@ -70,7 +65,7 @@ export default function AdminDashboardPage() {
       setRejectModal(null);
       setRejectReason('');
       refreshApps();
-    } catch (err) {
+    } catch {
       toast.error('Failed to reject', { style: { borderRadius: '12px' } });
     }
   };

@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 const roleDashboards = {
   admin:  '/dashboard/admin',
   seller: '/dashboard/seller',
-  buyer:  '/dashboard/buyer',
+  buyer:  '/profile',
 };
 
 export default function ProtectedRoute({ children, role = null }) {

@@ -4,15 +4,12 @@ import {
   HiOutlineUser, HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker,
   HiOutlineShoppingBag, HiOutlineHeart, HiOutlineLogout,
   HiOutlinePencil, HiOutlineClipboardList, HiOutlineLockClosed,
-  HiOutlineCheck, HiOutlineStar,
+  HiOutlineCheck,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore, useWishlistStore, useOrderStore } from '../store';
 import BecomeSellerForm from '../components/BecomeSellerForm';
 import toast from 'react-hot-toast';
-
-// ── Empty ── clean slate ───────────────────────────────────────────────────────
-const mockOrders = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE  (named export — imported as: import { ProfilePage } from ...)

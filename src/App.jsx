@@ -23,7 +23,6 @@ import PrivacyPage from './pages/PrivacyPage';
 import OutfitPage from './pages/OutfitPage';
 import ComparePage from './pages/ComparePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
-import BuyerDashboardPage from './pages/BuyerDashboardPage';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -83,10 +82,6 @@ function AppRoutes() {
 
         <Route path="/profile/edit" element={
           <ProtectedRoute><PageWrapper><EditProfilePage /></PageWrapper></ProtectedRoute>
-        } />
-
-        <Route path="/dashboard/buyer" element={
-          <ProtectedRoute><PageWrapper><BuyerDashboardPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/orders/my-orders" element={
