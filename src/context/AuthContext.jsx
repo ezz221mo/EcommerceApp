@@ -7,7 +7,7 @@ import {
   createUserDocument,
   updateUserDocument,
 } from '../services/userService';
-import { useCartStore } from '../store';
+import { loadCart, clearCartSession } from '../store';
 
 export const AuthContext = createContext(null);
 
@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setCurrentUser(firebaseUser);
       if (firebaseUser) {
+        loadCart(firebaseUser.uid);
         try {
           const data = await getUserDocument(firebaseUser.uid);
           setUserData(data);
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
           setUserData(null);
         }
       } else {
+        clearCartSession();
         setUserData(null);
       }
       setLoading(false);
@@ -37,8 +39,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const result = await loginUser(email, password);
     const data = await getUserDocument(result.user.uid);
-    useCartStore.getState().clearCart();
-    console.log('[Auth] Login — cart cleared for new user');
+    loadCart(result.user.uid);
     setUserData(data);
     return data;
   }, []);
@@ -62,8 +63,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     await logoutUser();
-    useCartStore.getState().clearCart();
-    console.log('[Auth] Logout — cart cleared');
+    clearCartSession();
     setCurrentUser(null);
     setUserData(null);
   }, []);

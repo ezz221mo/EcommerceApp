@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiStar, HiOutlineTrash, HiOutlineDotsVertical } from 'react-icons/hi';
 import { useAuth } from '../../hooks/useAuth';
+import { useProductStore } from '../../store';
 import { setReview, getReviewsByProduct, getUserReview, deleteUserReview } from '../../services/reviewService';
 import toast from 'react-hot-toast';
 
@@ -111,6 +112,16 @@ export default function ProductReviews({ product }) {
   const avgRating = totalReviews > 0
     ? reviews.reduce((s, r) => s + r.rating, 0) / totalReviews
     : 0;
+
+  useEffect(() => {
+    if (productId) {
+      useProductStore.getState().updateProduct(productId, {
+        rating: +avgRating.toFixed(1),
+        reviews: totalReviews,
+      });
+    }
+  }, [productId, avgRating, totalReviews]);
+
   const distribution = [0, 0, 0, 0, 0];
   reviews.forEach(r => { if (r.rating >= 1 && r.rating <= 5) distribution[r.rating - 1]++; });
   const maxCount = Math.max(...distribution, 1);

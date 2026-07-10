@@ -18,7 +18,6 @@ const spring = { type: 'spring', stiffness: 150, damping: 18 };
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, coupon, clearCart, applyDiscount, removeDiscount } = useCartStore();
-  const discount = useCartStore(s => s.discount);
   const { userData } = useAuth();
   const { placeOrder } = useOrderStore();
 
@@ -40,6 +39,10 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const shipping = subtotal >= 75 ? 0 : 9.99;
   const tax = subtotal * 0.08;
+  const discount = !coupon ? 0
+    : coupon.type === 'fixed' ? Math.min(coupon.value, subtotal)
+    : coupon.type === 'free_shipping' ? (coupon.value || 0)
+    : +(subtotal * (coupon.percent / 100)).toFixed(2);
   const total = subtotal + shipping + tax - discount;
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });

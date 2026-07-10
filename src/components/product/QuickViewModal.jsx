@@ -35,7 +35,7 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
   const { addItem, isInCart }  = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
   const { addItem: addCompare, isCompared } = useCompare();
-  const { userData }           = useAuth();
+  const { currentUser, userData } = useAuth();
 
   const isSeller   = userData?.role === 'seller';
   const inCart     = isInCart(product.id);
@@ -48,7 +48,7 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
     : null;
 
   const handleAddToCart = () => {
-    if (!product.inStock || isSeller) return;
+    if (!product.inStock || isSeller || !currentUser) return;
     addItem(product, quantity, false);
     toast.success(`${quantity}× ${product.name} added to cart!`, {
       icon: '\u{1F6D2}',
@@ -242,7 +242,7 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
                 )}
 
                 <div className="flex gap-3">
-                  {!isSeller && product.inStock && (
+                  {currentUser && !isSeller && product.inStock && (
                     <button onClick={handleAddToCart}
                       className="btn-primary flex-1 text-sm py-3"
                     >

@@ -1,118 +1,136 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// ── Clean up old shared cart key from localStorage ───────────────────────────
-try {
-  const oldCart = localStorage.getItem('luxe-cart');
-  if (oldCart) {
-    localStorage.removeItem('luxe-cart');
-    console.log('[Cart] Removed shared localStorage key luxe-cart — cart is now session-scoped');
-  }
-} catch (e) {
-  console.warn('[Cart] Could not clean up localStorage:', e);
+// ── Per‑user cart persistence (sync, no persist middleware) ─────────────────
+let _currentCartOwner = null;
+
+export function loadCart(uid) {
+  _currentCartOwner = uid;
+  try {
+    const saved = localStorage.getItem(`luxe-cart-${uid}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      useCartStore.setState({ items: parsed.items || [], coupon: parsed.coupon || null });
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  useCartStore.setState({ items: [], coupon: null });
 }
 
-// Cart Store (NOT persisted — each user/tab gets an independent in-memory cart)
-export const useCartStore = create((set, get) => ({
-  items: [],
-  coupon: null, // { code, percent, type, value, description }
+export function clearCartSession() {
+  _currentCartOwner = null;
+  useCartStore.setState({ items: [], coupon: null });
+}
 
-  // Toggle behaviour:
-  //   • First click  → adds 1 unit
-  //   • Second click (same product, no explicit quantity) → removes it
-  // Direct quantity calls (from CartPage stepper) always set the value.
-  addItem: (product, quantity = 1, toggle = false) => {
-    const maxStock = product.stock ? parseInt(product.stock) : Infinity;
-    const existing = get().items.find(i => i.id === product.id);
+// Cart Store
+export const useCartStore = create(
+  (set, get) => ({
+    items: [],
+    coupon: null,
 
-    if (existing) {
-      if (toggle) {
-        set(state => ({
-          items: state.items.filter(i => i.id !== product.id),
-        }));
+    addItem: (product, quantity = 1, toggle = false) => {
+      if (!_currentCartOwner) return;
+      const maxStock = product.stock ? parseInt(product.stock) : Infinity;
+      const existing = get().items.find(i => i.id === product.id);
+
+      if (existing) {
+        if (toggle) {
+          set(state => ({
+            items: state.items.filter(i => i.id !== product.id),
+          }));
+        } else {
+          const newQty = Math.min(existing.quantity + quantity, maxStock);
+          set(state => ({
+            items: state.items.map(i =>
+              i.id === product.id ? { ...i, quantity: newQty } : i
+            ),
+          }));
+        }
       } else {
-        const newQty = Math.min(existing.quantity + quantity, maxStock);
+        const cappedQty = Math.min(quantity, maxStock);
         set(state => ({
-          items: state.items.map(i =>
-            i.id === product.id ? { ...i, quantity: newQty } : i
-          ),
+          items: [...state.items, { ...product, quantity: cappedQty }],
         }));
       }
-    } else {
-      const cappedQty = Math.min(quantity, maxStock);
+    },
+
+    removeItem: (id) =>
+      set(state => ({ items: state.items.filter(i => i.id !== id) })),
+
+    updateQuantity: (id, quantity) => {
+      if (quantity <= 0) { get().removeItem(id); return; }
+      const item     = get().items.find(i => i.id === id);
+      const maxStock = item?.stock ? parseInt(item.stock) : Infinity;
+      const capped   = Math.min(quantity, maxStock);
       set(state => ({
-        items: [...state.items, { ...product, quantity: cappedQty }],
+        items: state.items.map(i => i.id === id ? { ...i, quantity: capped } : i),
       }));
-    }
-  },
+    },
 
-  removeItem: (id) =>
-    set(state => ({ items: state.items.filter(i => i.id !== id) })),
+    increaseQuantity: (id) => {
+      const item = get().items.find(i => i.id === id);
+      if (!item) return;
+      const maxStock = item.stock ? parseInt(item.stock) : Infinity;
+      if (item.quantity >= maxStock) return;
+      set(state => ({
+        items: state.items.map(i =>
+          i.id === id ? { ...i, quantity: i.quantity + 1 } : i
+        ),
+      }));
+    },
 
-  updateQuantity: (id, quantity) => {
-    if (quantity <= 0) { get().removeItem(id); return; }
-    const item     = get().items.find(i => i.id === id);
-    const maxStock = item?.stock ? parseInt(item.stock) : Infinity;
-    const capped   = Math.min(quantity, maxStock);
-    set(state => ({
-      items: state.items.map(i => i.id === id ? { ...i, quantity: capped } : i),
-    }));
-  },
+    decreaseQuantity: (id) => {
+      const item = get().items.find(i => i.id === id);
+      if (!item) return;
+      if (item.quantity <= 1) { get().removeItem(id); return; }
+      set(state => ({
+        items: state.items.map(i =>
+          i.id === id ? { ...i, quantity: i.quantity - 1 } : i
+        ),
+      }));
+    },
 
-  increaseQuantity: (id) => {
-    const item = get().items.find(i => i.id === id);
-    if (!item) return;
-    const maxStock = item.stock ? parseInt(item.stock) : Infinity;
-    if (item.quantity >= maxStock) return;
-    set(state => ({
-      items: state.items.map(i =>
-        i.id === id ? { ...i, quantity: i.quantity + 1 } : i
-      ),
-    }));
-  },
+    clearCart: () => set({ items: [], coupon: null }),
 
-  decreaseQuantity: (id) => {
-    const item = get().items.find(i => i.id === id);
-    if (!item) return;
-    if (item.quantity <= 1) { get().removeItem(id); return; }
-    set(state => ({
-      items: state.items.map(i =>
-        i.id === id ? { ...i, quantity: i.quantity - 1 } : i
-      ),
-    }));
-  },
+    isInCart: (id) => get().items.some(i => i.id === id),
 
-  clearCart: () => set({ items: [], coupon: null }),
+    applyDiscount: ({ code, percent, type, value, description }) => {
+      const t = type || 'percentage';
+      if (t === 'percentage' && (percent <= 0 || percent > 100)) return;
+      if (t === 'fixed' && (value <= 0)) return;
+      if (t === 'free_shipping' && (value <= 0)) return;
+      set({ coupon: { code: code.toUpperCase(), percent: percent || 0, type: t, value: value || 0, description: description || '' } });
+    },
 
-  isInCart: (id) => get().items.some(i => i.id === id),
+    removeDiscount: () => set({ coupon: null }),
 
-  applyDiscount: ({ code, percent, type, value, description }) => {
-    const t = type || 'percentage';
-    if (t === 'percentage' && (percent <= 0 || percent > 100)) return;
-    if (t === 'fixed' && (value <= 0)) return;
-    if (t === 'free_shipping' && (value <= 0)) return;
-    set({ coupon: { code: code.toUpperCase(), percent: percent || 0, type: t, value: value || 0, description: description || '' } });
-  },
+    get totalItems() { return get().items.reduce((sum, i) => sum + i.quantity, 0); },
+    get totalPrice()  { return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0); },
+    get discount() {
+      const c = get().coupon;
+      if (!c) return 0;
+      const total = get().totalPrice;
+      switch (c.type) {
+        case 'fixed':
+          return Math.min(c.value, total);
+        case 'free_shipping':
+          return c.value || 0;
+        default:
+          return +(total * (c.percent / 100)).toFixed(2);
+      }
+    },
+    get grandTotal() { return +(get().totalPrice - get().discount).toFixed(2); },
+  })
+);
 
-  removeDiscount: () => set({ coupon: null }),
-
-  get totalItems() { return get().items.reduce((sum, i) => sum + i.quantity, 0); },
-  get totalPrice()  { return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0); },
-  get discount() {
-    const c = get().coupon;
-    if (!c) return 0;
-    const total = get().totalPrice;
-    switch (c.type) {
-      case 'fixed':
-        return Math.min(c.value, total);
-      case 'free_shipping':
-        return c.value || 0;
-      default:
-        return +(total * (c.percent / 100)).toFixed(2);
-    }
-  },
-  get grandTotal() { return +(get().totalPrice - get().discount).toFixed(2); },
-}));
+// Auto-save cart to localStorage on every change for the authenticated user
+useCartStore.subscribe((state) => {
+  if (_currentCartOwner) {
+    try {
+      localStorage.setItem(`luxe-cart-${_currentCartOwner}`, JSON.stringify({ items: state.items, coupon: state.coupon }));
+    } catch (e) { /* quota exceeded etc. */ }
+  }
+});
 
 // Wishlist Store
 export const useWishlistStore = create(

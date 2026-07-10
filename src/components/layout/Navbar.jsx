@@ -221,7 +221,7 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {!isSeller && (
+              {isAuthenticated && !isSeller && !isAdmin && (
                 <Link to="/cart" className={`relative p-2 rounded-xl transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                   <HiOutlineShoppingCart className="w-5 h-5" />
                   {totalItems > 0 && (

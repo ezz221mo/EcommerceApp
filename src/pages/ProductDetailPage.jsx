@@ -27,10 +27,11 @@ export default function ProductDetailPage() {
   const [quantity,      setQuantity]      = useState(1);
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize,  setSelectedSize]  = useState(0);
+  const [activeTab, setActiveTab] = useState('description');
 
   const { addItem, updateQuantity, isInCart } = useCartStore();
   const { toggleItem, isWishlisted }          = useWishlistStore();
-  const { userData }                          = useAuth();
+  const { currentUser, userData }             = useAuth();
 
   const isSeller   = userData?.role === 'seller';
   const wishlisted = product ? isWishlisted(product.id) : false;
@@ -70,7 +71,7 @@ export default function ProductDetailPage() {
   const maxStock = product.stock ? parseInt(product.stock) : Infinity;
 
   const handleAddToCart = () => {
-    if (!product.inStock || isSeller) return;
+    if (!product.inStock || isSeller || !currentUser) return;
     addItem(product, quantity, false);
     toast.success(`${quantity}× ${product.name} added to cart!`, {
       icon: '🛒',
@@ -209,25 +210,6 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Description */}
-            {product.description && (
-              <p className="text-stone-600 dark:text-stone-400 leading-relaxed mb-6">
-                {product.description}
-              </p>
-            )}
-
-            {/* Features */}
-            {product.features?.length > 0 && (
-              <div className="grid grid-cols-2 gap-2 mb-8">
-                {product.features.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                    <HiOutlineCheck className="w-4 h-4 text-teal-500 flex-shrink-0" />
-                    {f}
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Colors */}
             {product.colors?.length > 0 && (
               <div className="mb-6">
@@ -292,8 +274,8 @@ export default function ProductDetailPage() {
                 : 'Out of Stock'}
             </div>
 
-            {/* Quantity + Actions — hidden for sellers */}
-            {!isSeller && product.inStock && (
+            {/* Quantity + Actions — buyers only */}
+            {currentUser && !isSeller && product.inStock && (
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 {/* Qty stepper */}
                 <div className="flex items-center gap-3 bg-stone-100 dark:bg-stone-800 rounded-xl p-1">
@@ -373,8 +355,78 @@ export default function ProductDetailPage() {
           </motion.div>
         </div>
 
-        {/* Reviews & Rating */}
-        <ProductReviews product={product} />
+        {/* Tab Navigation */}
+        <div className="flex gap-8 border-b border-stone-200 dark:border-stone-800 mb-8">
+          <button
+            onClick={() => setActiveTab('description')}
+            className={`pb-3 text-sm font-semibold transition-colors relative ${
+              activeTab === 'description'
+                ? 'text-orange-500'
+                : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+            }`}
+          >
+            Description
+            {activeTab === 'description' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('features')}
+            className={`pb-3 text-sm font-semibold transition-colors relative ${
+              activeTab === 'features'
+                ? 'text-orange-500'
+                : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+            }`}
+          >
+            Features
+            {activeTab === 'features' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`pb-3 text-sm font-semibold transition-colors relative ${
+              activeTab === 'reviews'
+                ? 'text-orange-500'
+                : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+            }`}
+          >
+            Customer Reviews
+            {activeTab === 'reviews' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />
+            )}
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'description' && product.description && (
+          <p className="text-stone-600 dark:text-stone-400 leading-relaxed mb-16">
+            {product.description}
+          </p>
+        )}
+
+        {activeTab === 'features' && (
+          <div className="mb-16">
+            {product.features?.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {product.features.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                    <HiOutlineCheck className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                    {f}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-stone-400">No features available.</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'reviews' && (
+          <div className="mb-16">
+            <ProductReviews product={product} />
+          </div>
+        )}
 
         {/* Related Products */}
         {related.length > 0 && (

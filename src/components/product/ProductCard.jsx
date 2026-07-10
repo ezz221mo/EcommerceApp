@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -6,8 +6,9 @@ import {
   HiOutlineShoppingCart, HiShoppingCart,
   HiStar, HiOutlineScale, HiOutlineEye, HiOutlineTemplate,
 } from 'react-icons/hi';
-import { useCartStore, useWishlistStore } from '../../store';
+import { useCartStore, useWishlistStore, useProductStore } from '../../store';
 import { useAuth } from '../../hooks/useAuth';
+import { getReviewsByProduct } from '../../services/reviewService';
 import useCompare from '../../hooks/useCompare';
 import QuickViewModal from './QuickViewModal';
 import toast from 'react-hot-toast';
@@ -15,10 +16,26 @@ import toast from 'react-hot-toast';
 const ProductCard = memo(function ProductCard({ product, index = 0 }) {
   const [showQuickView, setShowQuickView] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(true);
+  const [reviewStats, setReviewStats] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const allReviews = await getReviewsByProduct(product.id);
+        if (cancelled) return;
+        const total = allReviews.length;
+        const avg = total > 0 ? allReviews.reduce((s, r) => s + r.rating, 0) / total : 0;
+        setReviewStats({ rating: +avg.toFixed(1), reviews: total });
+        useProductStore.getState().updateProduct(product.id, { rating: +avg.toFixed(1), reviews: total });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [product.id]);
 
   const { addItem, isInCart }        = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
-  const { userData }                 = useAuth();
+  const { currentUser, userData }    = useAuth();
   const { addItem: addCompare, isCompared } = useCompare();
 
   const isSeller   = userData?.role === 'seller';
@@ -31,7 +48,7 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
   const handleCartToggle = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!product.inStock || isSeller) return;
+    if (!product.inStock || isSeller || !currentUser) return;
 
     if (inCart) {
       addItem(product, 1, true);
@@ -238,13 +255,13 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
                     transition={{ delay: index * 0.04 + i * 0.03 }}
                   >
                     <HiStar className={`w-3.5 h-3.5 ${
-                      i < Math.floor(product.rating) ? 'text-amber-400' : 'text-stone-200 dark:text-stone-700'
+                      i < Math.floor(reviewStats?.rating ?? product.rating) ? 'text-amber-400' : 'text-stone-200 dark:text-stone-700'
                     }`} />
                   </motion.div>
                 ))}
               </div>
               <span className="text-xs text-stone-500 dark:text-stone-400">
-                {product.rating} ({(product.reviews || 0).toLocaleString()})
+                {reviewStats?.rating ?? product.rating} ({(reviewStats?.reviews ?? product.reviews ?? 0).toLocaleString()})
               </span>
             </div>
 
@@ -287,7 +304,7 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
                 )}
               </div>
 
-              {!isSeller && (
+              {currentUser && !isSeller && (
                 <motion.button
                   onClick={handleCartToggle}
                   disabled={!product.inStock}

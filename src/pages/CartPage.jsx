@@ -170,6 +170,8 @@ export default function CartPage() {
           </AnimatePresence>
         </div>
 
+
+
         {/* Checkout */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
