@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineTrash, HiPlus, HiMinus, HiOutlineShoppingBag, HiArrowRight } from 'react-icons/hi';
+import { HiOutlineTrash, HiPlus, HiMinus, HiOutlineShoppingBag, HiArrowRight, HiOutlineChevronDown, HiOutlineSparkles } from 'react-icons/hi';
 import { useCartStore } from '../store';
 import toast from 'react-hot-toast';
 
@@ -9,10 +10,12 @@ const spring = { type: 'spring', stiffness: 200, damping: 20 };
 export default function CartPage() {
   const { items, removeItem, increaseQuantity, decreaseQuantity, clearCart, totalItems } = useCartStore();
   const navigate = useNavigate();
+  const [expandedBundles, setExpandedBundles] = useState({});
 
   const handleRemove = (item) => {
     removeItem(item.id);
-    toast.success(`${item.name} removed from cart`, {
+    const label = item._bundle ? 'Custom Set' : item.name;
+    toast.success(`${label} removed from cart`, {
       icon: '\u{1F5D1}\uFE0F',
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
@@ -94,78 +97,160 @@ export default function CartPage() {
         <div className="space-y-4 mb-8">
           <AnimatePresence>
             {items.map(item => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, x: -80, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                className="card p-4 sm:p-6 hover:shadow-lg hover:shadow-stone-200/40 dark:hover:shadow-stone-900/40 transition-shadow"
-              >
-                <div className="flex gap-4 sm:gap-5">
-                  <Link to={`/products/${item.id}`} className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800 group">
-                    <motion.img
-                      whileHover={{ scale: 1.08 }}
-                      transition={{ type: 'spring', stiffness: 150, damping: 12 }}
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-xs text-orange-500 font-semibold uppercase tracking-wider mb-1 capitalize">{item.category}</p>
-                        <Link to={`/products/${item.id}`}>
-                          <h3 className="font-semibold text-stone-900 dark:text-stone-100 hover:text-orange-600 transition-colors line-clamp-1">
-                            {item.name}
-                          </h3>
-                        </Link>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-bold text-lg text-stone-900 dark:text-stone-100">${(item.price * item.quantity).toFixed(2)}</div>
-                        <div className="text-sm text-stone-400">${item.price} each</div>
-                      </div>
+              item._bundle ? (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -80, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                  className="card p-4 sm:p-6"
+                >
+                  <div className="flex gap-4 sm:gap-5">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden bg-gradient-to-br from-purple-100 to-orange-100 dark:from-purple-950/30 dark:to-orange-950/30 flex items-center justify-center">
+                      <HiOutlineSparkles className="w-8 h-8 text-purple-400" />
                     </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-2 bg-stone-100 dark:bg-stone-800 rounded-xl p-1">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs text-purple-500 font-semibold uppercase tracking-wider mb-1">Bundle</p>
+                          <h3 className="font-semibold text-stone-900 dark:text-stone-100">Custom Set</h3>
+                          <p className="text-xs text-stone-400 mt-0.5">{item.bundleItems?.length || 0} products</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-bold text-lg text-stone-900 dark:text-stone-100">${(item.price * item.quantity).toFixed(2)}</div>
+                          {item.bundleDiscount?.originalTotal > 0 && (
+                            <div className="text-xs text-stone-400">
+                              <span className="line-through">${item.bundleDiscount.originalTotal.toFixed(2)}</span>
+                              <span className="text-green-600 dark:text-green-400 ml-1 font-medium">-{item.bundleDiscount.discountPercent}%</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-4">
+                        <button
+                          onClick={() => setExpandedBundles(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                          className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+                        >
+                          <motion.span
+                            animate={{ rotate: expandedBundles[item.id] ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <HiOutlineChevronDown className="w-3.5 h-3.5" />
+                          </motion.span>
+                          {expandedBundles[item.id] ? 'Hide items' : 'View items'}
+                        </button>
                         <motion.button
+                          whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => decreaseQuantity(item.id)}
-                          className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors"
+                          onClick={() => handleRemove(item)}
+                          className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-rose-500 transition-colors group"
                         >
-                          <HiMinus className="w-3.5 h-3.5" />
-                        </motion.button>
-                        <motion.span
-                          key={item.quantity}
-                          initial={{ scale: 1.2 }}
-                          animate={{ scale: 1 }}
-                          className="w-8 text-center font-semibold"
-                        >
-                          {item.quantity}
-                        </motion.span>
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => increaseQuantity(item.id)}
-                          className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors"
-                        >
-                          <HiPlus className="w-3.5 h-3.5" />
+                          <HiOutlineTrash className="w-4 h-4" />
+                          <span className="hidden sm:inline">Remove</span>
                         </motion.button>
                       </div>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => handleRemove(item)}
-                        className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-rose-500 transition-colors group"
-                      >
-                        <HiOutlineTrash className="w-4 h-4" />
-                        <span className="hidden sm:inline">Remove</span>
-                      </motion.button>
+                      <AnimatePresence>
+                        {expandedBundles[item.id] && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2">
+                              {item.bundleItems?.map((bi) => (
+                                <div key={bi.id} className="flex items-center gap-3 text-sm">
+                                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 flex-shrink-0">
+                                    <img src={bi.image || 'https://placehold.co/100?text=No+Image'} alt={bi.name} className="w-full h-full object-cover" />
+                                  </div>
+                                  <span className="flex-1 text-stone-700 dark:text-stone-300 truncate">{bi.name}</span>
+                                  <span className="text-stone-500 font-medium">${Number(bi.price).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -80, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                  className="card p-4 sm:p-6 hover:shadow-lg hover:shadow-stone-200/40 dark:hover:shadow-stone-900/40 transition-shadow"
+                >
+                  <div className="flex gap-4 sm:gap-5">
+                    <Link to={`/products/${item.id}`} className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800 group">
+                      <motion.img
+                        whileHover={{ scale: 1.08 }}
+                        transition={{ type: 'spring', stiffness: 150, damping: 12 }}
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs text-orange-500 font-semibold uppercase tracking-wider mb-1 capitalize">{item.category}</p>
+                          <Link to={`/products/${item.id}`}>
+                            <h3 className="font-semibold text-stone-900 dark:text-stone-100 hover:text-orange-600 transition-colors line-clamp-1">
+                              {item.name}
+                            </h3>
+                          </Link>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-bold text-lg text-stone-900 dark:text-stone-100">${(item.price * item.quantity).toFixed(2)}</div>
+                          <div className="text-sm text-stone-400">${item.price} each</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center gap-2 bg-stone-100 dark:bg-stone-800 rounded-xl p-1">
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => decreaseQuantity(item.id)}
+                            className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors"
+                          >
+                            <HiMinus className="w-3.5 h-3.5" />
+                          </motion.button>
+                          <motion.span
+                            key={item.quantity}
+                            initial={{ scale: 1.2 }}
+                            animate={{ scale: 1 }}
+                            className="w-8 text-center font-semibold"
+                          >
+                            {item.quantity}
+                          </motion.span>
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => increaseQuantity(item.id)}
+                            className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-stone-700 flex items-center justify-center transition-colors"
+                          >
+                            <HiPlus className="w-3.5 h-3.5" />
+                          </motion.button>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleRemove(item)}
+                          className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-rose-500 transition-colors group"
+                        >
+                          <HiOutlineTrash className="w-4 h-4" />
+                          <span className="hidden sm:inline">Remove</span>
+                        </motion.button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )
             ))}
           </AnimatePresence>
         </div>

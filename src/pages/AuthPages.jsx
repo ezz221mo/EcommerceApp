@@ -97,6 +97,7 @@ export function LoginPage() {
 
   const { login: authLogin } = useAuth();
   const navigate = useNavigate();
+  const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '';
 
   // After login, navigate by role — ProtectedRoute handles gating
   const getRoleDashboard = (data) => {
@@ -125,7 +126,11 @@ export function LoginPage() {
       toast.success('Welcome back! 👋', {
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
-      navigate(getRoleDashboard(data), { replace: true });
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+      } else {
+        navigate(getRoleDashboard(data), { replace: true });
+      }
     } catch (err) {
       const code = err.code;
       if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {

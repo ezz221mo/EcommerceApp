@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineX, HiStar, HiOutlineShoppingCart, HiHeart, HiOutlineHeart,
-  HiPlus, HiMinus, HiOutlineScale,
+  HiPlus, HiMinus,
 } from 'react-icons/hi';
 import { useCartStore, useWishlistStore } from '../../store';
 import { useAuth } from '../../hooks/useAuth';
-import useCompare from '../../hooks/useCompare';
 import toast from 'react-hot-toast';
 
 const overlayVariants = {
@@ -34,13 +33,11 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
 
   const { addItem, isInCart }  = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
-  const { addItem: addCompare, isCompared } = useCompare();
   const { currentUser, userData } = useAuth();
 
   const isSeller   = userData?.role === 'seller';
   const inCart     = isInCart(product.id);
   const wishlisted = isWishlisted(product.id);
-  const compared   = isCompared(product.id);
 
   const maxStock = product.stock ? parseInt(product.stock) : Infinity;
   const discount = product.originalPrice
@@ -63,10 +60,6 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
       icon: wishlisted ? '\u{1F494}' : '\u2764\uFE0F',
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
-  };
-
-  const handleCompare = () => {
-    addCompare(product);
   };
 
   return (
@@ -221,23 +214,6 @@ export default function QuickViewModal({ product, isOpen, onClose }) {
                         <HiPlus className="w-3.5 h-3.5" />
                       </motion.button>
                     </div>
-                  </div>
-                )}
-
-                {/* Compare button */}
-                {!isSeller && (
-                  <div className="mb-4">
-                    <motion.button
-                      onClick={handleCompare}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`text-xs font-medium flex items-center gap-1 transition-colors ${
-                        compared ? 'text-teal-500' : 'text-stone-400 hover:text-teal-500'
-                      }`}
-                    >
-                      <HiOutlineScale className="w-3.5 h-3.5" />
-                      {compared ? 'Comparing' : 'Compare'}
-                    </motion.button>
                   </div>
                 )}
 

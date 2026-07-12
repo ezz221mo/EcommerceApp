@@ -21,7 +21,7 @@ import AboutPage from './pages/AboutPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import OutfitPage from './pages/OutfitPage';
-import ComparePage from './pages/ComparePage';
+import CreateSetPage from './pages/CreateSetPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 
 const pageVariants = {
@@ -54,7 +54,7 @@ function AppRoutes() {
         <Route path="/privacy-policy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
 
         <Route path="/outfit" element={<PageWrapper><OutfitPage /></PageWrapper>} />
-        <Route path="/compare" element={<PageWrapper><ComparePage /></PageWrapper>} />
+        <Route path="/create-set" element={<ProtectedRoute role="buyer"><PageWrapper><CreateSetPage /></PageWrapper></ProtectedRoute>} />
 
         <Route path="/cart" element={
           <ProtectedRoute><PageWrapper><CartPage /></PageWrapper></ProtectedRoute>

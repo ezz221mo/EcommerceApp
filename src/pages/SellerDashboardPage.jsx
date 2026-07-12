@@ -271,6 +271,9 @@ export default function SellerDashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddModal, setShowAddModal] = useState(false);
 
+  const activeTab = searchParams.get('tab') || 'overview';
+  const setTab    = (key) => setSearchParams(key === 'overview' ? {} : { tab: key });
+
   // ── Coupon State ──────────────────────────────────────────────────────────
   const [sellerCoupons, setSellerCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
@@ -359,9 +362,6 @@ export default function SellerDashboardPage() {
     { value: 'fixed', label: 'Fixed Amount ($)' },
     { value: 'free_shipping', label: 'Free Shipping' },
   ];
-
-  const activeTab = searchParams.get('tab') || 'overview';
-  const setTab    = (key) => setSearchParams(key === 'overview' ? {} : { tab: key });
 
   const handleDelete = (id) => {
     deleteProduct(id);

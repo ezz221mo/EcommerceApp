@@ -133,6 +133,14 @@ useCartStore.subscribe((state) => {
 });
 
 // Wishlist Store
+const MINIMAL_FIELDS = ['id', 'name', 'price', 'image', 'category', 'sizes', 'colors', 'inStock', 'originalPrice', 'badge', 'rating', 'reviews'];
+
+function pickMinimal(product) {
+  const picked = {};
+  MINIMAL_FIELDS.forEach(k => { picked[k] = product[k]; });
+  return picked;
+}
+
 export const useWishlistStore = create(
   persist(
     (set, get) => ({
@@ -142,7 +150,7 @@ export const useWishlistStore = create(
         if (exists) {
           set(state => ({ items: state.items.filter(i => i.id !== product.id) }));
         } else {
-          set(state => ({ items: [...state.items, product] }));
+          set(state => ({ items: [...state.items, pickMinimal(product)] }));
         }
       },
       isWishlisted: (id) => get().items.some(i => i.id === id),
@@ -154,7 +162,18 @@ export const useWishlistStore = create(
       },
       clearWishlist: () => set({ items: [] }),
     }),
-    { name: 'luxe-wishlist' }
+    {
+      name: 'luxe-wishlist',
+      version: 1,
+      migrate: (persistedState) => {
+        if (persistedState && Array.isArray(persistedState.items)) {
+          return {
+            items: persistedState.items.map(p => pickMinimal(p)),
+          };
+        }
+        return { items: [] };
+      },
+    }
   )
 );
 

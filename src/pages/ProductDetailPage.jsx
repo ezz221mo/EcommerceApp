@@ -5,7 +5,7 @@ import {
   HiOutlineShoppingCart, HiOutlineHeart, HiHeart, HiStar,
   HiPlus, HiMinus, HiOutlineCheck,
   HiOutlineTruck, HiOutlineShieldCheck, HiOutlineArrowLeft,
-  HiOutlineShare, HiOutlineTemplate,
+  HiOutlineShare,
 } from 'react-icons/hi';
 import { useCartStore, useWishlistStore, useProductStore } from '../store';
 import { useAuth } from '../hooks/useAuth';
@@ -34,6 +34,7 @@ export default function ProductDetailPage() {
   const { currentUser, userData }             = useAuth();
 
   const isSeller   = userData?.role === 'seller';
+  const isAdmin    = userData?.role === 'admin';
   const wishlisted = product ? isWishlisted(product.id) : false;
   const inCart     = product ? isInCart(product.id)     : false;
 
@@ -96,13 +97,6 @@ export default function ProductDetailPage() {
         style: { borderRadius: '12px' },
       });
     }
-  };
-
-  const handleAddToOutfit = () => {
-    toast('Add to outfit coming soon!', {
-      icon: '\u{1F455}',
-      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
-    });
   };
 
   return (
@@ -317,8 +311,8 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Share + Outfit */}
-            {!isSeller && (
+            {/* Share */}
+            {!isSeller && !isAdmin && (
               <div className="flex items-center gap-3 mb-8">
                 <motion.button
                   onClick={handleShare}
@@ -328,15 +322,6 @@ export default function ProductDetailPage() {
                 >
                   <HiOutlineShare className="w-4 h-4" />
                   Share
-                </motion.button>
-                <motion.button
-                  onClick={handleAddToOutfit}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 text-sm font-semibold text-stone-600 dark:text-stone-400 hover:border-orange-300 hover:text-orange-500 transition-all"
-                >
-                  <HiOutlineTemplate className="w-4 h-4" />
-                  Add to Outfit
                 </motion.button>
               </div>
             )}

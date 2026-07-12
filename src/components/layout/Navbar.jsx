@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon, HiOutlineMenu, HiOutlineX, HiOutlineSearch, HiOutlineViewGrid, HiOutlineLogout, HiOutlineChartBar, HiOutlineScale, HiOutlineClipboardList } from 'react-icons/hi';
+import { HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon, HiOutlineMenu, HiOutlineX, HiOutlineViewGrid, HiOutlineLogout, HiOutlineChartBar, HiOutlineClipboardList, HiOutlineSparkles } from 'react-icons/hi';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartStore, useWishlistStore, useThemeStore } from '../../store';
-import useCompare from '../../hooks/useCompare';
 
 const buyerLinks = [
   { to: '/', label: 'Home', end: true },
@@ -25,8 +24,6 @@ const spring = { type: 'spring', stiffness: 300, damping: 30 };
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,7 +32,6 @@ export default function Navbar() {
   const wishlistItems = useWishlistStore(s => s.items);
   const { isDark, toggleTheme } = useThemeStore();
   const { currentUser, userData, logout: authLogout } = useAuth();
-  const { items: compareItems } = useCompare();
 
   const isSeller = userData?.role === 'seller';
   const isAdmin = userData?.role === 'admin';
@@ -48,7 +44,6 @@ export default function Navbar() {
       ]
     : isSeller ? sellerLinks : buyerLinks;
   const totalItems = cartItems.reduce((sum, i) => sum + i.quantity, 0);
-  const hideSearch = location.pathname === '/login' || location.pathname === '/register' || location.pathname.includes('/dashboard');
 
   const isHome = location.pathname === '/';
   const darkText = !isHome || scrolled;
@@ -79,11 +74,6 @@ export default function Navbar() {
       prevPath.current = location.pathname;
     }
   }, [location.pathname]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) { navigate(`/products?search=${encodeURIComponent(searchQuery)}`); setSearchOpen(false); setSearchQuery(''); }
-  };
 
   const handleLogout = async () => {
     await authLogout();
@@ -172,16 +162,6 @@ export default function Navbar() {
 
             {/* Actions */}
             <div className="flex items-center gap-0.5">
-              {!hideSearch && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setSearchOpen(true)}
-                  className={`p-2 rounded-xl transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-                >
-                  <HiOutlineSearch className="w-5 h-5" />
-                </motion.button>
-              )}
               <motion.button
                 whileHover={{ scale: 1.05, rotate: isDark ? -15 : 15 }}
                 whileTap={{ scale: 0.95 }}
@@ -191,19 +171,11 @@ export default function Navbar() {
                 {isDark ? <HiOutlineSun className="w-5 h-5" /> : <HiOutlineMoon className="w-5 h-5" />}
               </motion.button>
 
-              <Link to="/compare" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-teal-500 hover:bg-teal-50 dark:text-stone-400 dark:hover:text-teal-400 dark:hover:bg-teal-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
-                <HiOutlineScale className="w-5 h-5" />
-                {compareItems.length > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 10 }}
-                    className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-teal-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold"
-                  >
-                    {compareItems.length}
-                  </motion.span>
-                )}
-              </Link>
+              {isAuthenticated && !isSeller && !isAdmin && (
+                <Link to="/create-set" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-purple-500 hover:bg-purple-50 dark:text-stone-400 dark:hover:text-purple-400 dark:hover:bg-purple-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+                  <HiOutlineSparkles className="w-5 h-5" />
+                </Link>
+              )}
 
               {isAuthenticated && !isSeller && (
                 <Link to="/wishlist" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
@@ -292,17 +264,14 @@ export default function Navbar() {
                               <Link to="/dashboard/seller?tab=products" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineViewGrid className="w-4 h-4 text-stone-400" /> My Products
                               </Link>
-                              <Link to="/compare" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-                                <HiOutlineScale className="w-4 h-4 text-stone-400" /> Compare {compareItems.length > 0 && (<span className="ml-auto badge bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 text-xs">{compareItems.length}</span>)}
-                              </Link>
                             </>
                           ) : (
                             <>
                               <Link to="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineUser className="w-4 h-4 text-stone-400" /> My Profile
                               </Link>
-                              <Link to="/compare" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-                                <HiOutlineScale className="w-4 h-4 text-stone-400" /> Compare {compareItems.length > 0 && (<span className="ml-auto badge bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 text-xs">{compareItems.length}</span>)}
+                              <Link to="/create-set" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                                <HiOutlineSparkles className="w-4 h-4 text-stone-400" /> Create Set
                               </Link>
                               <Link to="/wishlist" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                                 <HiOutlineHeart className="w-4 h-4 text-stone-400" /> Wishlist {wishlistItems.length > 0 && (<span className="ml-auto badge bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">{wishlistItems.length}</span>)}
@@ -336,50 +305,6 @@ export default function Navbar() {
           </div>
         </div>
       </motion.nav>
-
-      {/* Search Overlay */}
-      <AnimatePresence>
-        {searchOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-start justify-center pt-28 px-4"
-            onClick={() => setSearchOpen(false)}
-          >
-            <motion.form
-              initial={{ y: -30, opacity: 0, scale: 0.97 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: -30, opacity: 0, scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-              onSubmit={handleSearch}
-              className="w-full max-w-2xl"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="relative">
-                <HiOutlineSearch className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-14 pr-14 py-5 rounded-2xl text-lg bg-white/90 dark:bg-stone-900/90 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-stone-700/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 text-stone-900 dark:text-stone-100"
-                />
-                <motion.button
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  type="button"
-                  onClick={() => setSearchOpen(false)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-                >
-                  <HiOutlineX className="w-5 h-5 text-stone-400" />
-                </motion.button>
-              </div>
-            </motion.form>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Mobile Drawer */}
       <AnimatePresence>
@@ -463,17 +388,14 @@ export default function Navbar() {
                           <Link to="/dashboard/seller" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
                             <HiOutlineChartBar className="w-5 h-5" /> Dashboard
                           </Link>
-                          <Link to="/compare" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
-                            <HiOutlineScale className="w-5 h-5" /> Compare ({compareItems.length})
-                          </Link>
                         </>
                       ) : (
                         <>
                           <Link to="/wishlist" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
                             <HiOutlineHeart className="w-5 h-5" /> Wishlist ({wishlistItems.length})
                           </Link>
-                          <Link to="/compare" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
-                            <HiOutlineScale className="w-5 h-5" /> Compare ({compareItems.length})
+                          <Link to="/create-set" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
+                            <HiOutlineSparkles className="w-5 h-5" /> Create Set
                           </Link>
                           <Link to="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium">
                             <HiOutlineUser className="w-5 h-5" /> My Profile

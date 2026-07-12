@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { useCartStore } from '../store';
 import { saveUserSubData, loadUserSubData } from '../services/firestoreService';
@@ -51,13 +51,19 @@ export default function useOutfit() {
     }
   }, [currentUser, loaded]);
 
+  const saveRef = useRef(outfit);
+  saveRef.current = outfit;
+
   useEffect(() => {
     if (!loaded) return;
-    if (currentUser) {
-      saveUserSubData(currentUser.uid, 'outfits', 'current', outfit).catch(() => {});
-    } else {
-      saveLocal(outfit);
-    }
+    const timer = setTimeout(() => {
+      if (currentUser) {
+        saveUserSubData(currentUser.uid, 'outfits', 'current', saveRef.current).catch(() => {});
+      } else {
+        saveLocal(saveRef.current);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
   }, [outfit, currentUser, loaded]);
 
   const selectItem = useCallback((slot, product) => {

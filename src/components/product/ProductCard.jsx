@@ -4,12 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineHeart, HiHeart,
   HiOutlineShoppingCart, HiShoppingCart,
-  HiStar, HiOutlineScale, HiOutlineEye, HiOutlineTemplate,
+  HiStar, HiOutlineEye,
 } from 'react-icons/hi';
 import { useCartStore, useWishlistStore, useProductStore } from '../../store';
 import { useAuth } from '../../hooks/useAuth';
 import { getReviewsByProduct } from '../../services/reviewService';
-import useCompare from '../../hooks/useCompare';
 import QuickViewModal from './QuickViewModal';
 import toast from 'react-hot-toast';
 
@@ -36,12 +35,10 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
   const { addItem, isInCart }        = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
   const { currentUser, userData }    = useAuth();
-  const { addItem: addCompare, isCompared } = useCompare();
 
   const isSeller   = userData?.role === 'seller';
   const inCart     = isInCart(product.id);
   const wishlisted = isWishlisted(product.id);
-  const compared   = isCompared(product.id);
 
   const hasHoverImage = !!product.hoverImage;
 
@@ -79,15 +76,6 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
     e.preventDefault();
     e.stopPropagation();
     setShowQuickView(true);
-  };
-
-  const handleAddToOutfit = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toast('Outfit builder coming soon!', {
-      icon: '\u{1F455}',
-      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
-    });
   };
 
   const discount = product.originalPrice
@@ -264,32 +252,6 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
                 {reviewStats?.rating ?? product.rating} ({(reviewStats?.reviews ?? product.reviews ?? 0).toLocaleString()})
               </span>
             </div>
-
-            {/* Compare + Outfit buttons */}
-            {!isSeller && (
-              <div className="flex items-center gap-3 mb-2">
-                <motion.button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); addCompare(product); }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`text-xs font-medium flex items-center gap-1 transition-colors ${
-                    compared ? 'text-teal-500' : 'text-stone-400 hover:text-teal-500'
-                  }`}
-                >
-                  <HiOutlineScale className="w-3.5 h-3.5" />
-                  {compared ? 'Comparing' : 'Compare'}
-                </motion.button>
-                <motion.button
-                  onClick={handleAddToOutfit}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="text-xs font-medium flex items-center gap-1 text-stone-400 hover:text-orange-500 transition-colors"
-                >
-                  <HiOutlineTemplate className="w-3.5 h-3.5" />
-                  Add to Outfit
-                </motion.button>
-              </div>
-            )}
 
             {/* Price + Cart toggle (hidden for sellers) */}
             <div className="flex items-center justify-between">
