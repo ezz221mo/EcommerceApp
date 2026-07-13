@@ -1,210 +1,189 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from './useAuth';
-import { useCartStore } from '../store';
-import { saveUserSubData, loadUserSubData } from '../services/firestoreService';
+import { saveSetDoc, getAllSetDocs, deleteSetDoc } from '../services/firestoreService';
 import toast from 'react-hot-toast';
+
+const SET_PERSIST_DEBOUNCE = 1200;
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-const DISCOUNT_TIERS = [
-  { min: 15, pct: 50 },
-  { min: 10, pct: 40 },
-  { min: 7,  pct: 30 },
-  { min: 5,  pct: 20 },
-  { min: 3,  pct: 10 },
-  { min: 0,  pct: 0 },
-];
-
-function calcDiscount(count) {
-  for (const t of DISCOUNT_TIERS) {
-    if (count >= t.min) return t.pct;
-  }
-  return 0;
-}
-
-const DEFAULT = { sets: [], activeSetId: null };
-
-function normalize(raw) {
-  if (!raw) return DEFAULT;
-  if (Array.isArray(raw.sets) && raw.sets.length > 0) return raw;
-  if (raw.sets && typeof raw.sets === 'object' && !Array.isArray(raw.sets)) {
-    const ids = Object.keys(raw.sets);
-    if (ids.length === 0) return DEFAULT;
-    const arr = (raw.index || ids).map(idx => {
-      const id = typeof idx === 'string' ? idx : idx.id;
-      return {
-        id,
-        category: raw.sets[id]?.category || null,
-        products: raw.sets[id]?.products || [],
-        createdAt: idx.createdAt || Date.now(),
-      };
-    });
-    return { sets: arr, activeSetId: raw.activeSetId || arr[0]?.id || null };
-  }
-  if (Array.isArray(raw.products)) {
-    const id = uid();
-    return {
-      sets: [{ id, category: raw.products[0]?.category || null, products: raw.products, createdAt: Date.now() }],
-      activeSetId: id,
-    };
-  }
-  return DEFAULT;
-}
-
 export default function useCreateSet() {
   const { currentUser } = useAuth();
-  const addItem = useCartStore(s => s.addItem);
 
-  const [sets, setSets] = useState([]);
-  const [activeSetId, setActiveSetId] = useState(null);
+  // الحالة تخزن فقط الـ IDs والبيانات الأساسية للـ Set
+  const [sets, setSets] = useState(() => {
+    try {
+      const local = localStorage.getItem('luxe-custom-sets-v2');
+      return local ? JSON.parse(local) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [loaded, setLoaded] = useState(false);
+  const [loadingError, setLoadingError] = useState(null);
 
-  const activeSetIdRef = useRef(activeSetId);
-  activeSetIdRef.current = activeSetId;
-
-  const activeSet = sets.find(s => s.id === activeSetId) || null;
-  const products = activeSet?.products || [];
-  const category = activeSet?.category || null;
-  const count = products.length;
-  const originalTotal = products.reduce((sum, p) => sum + Number(p.price), 0);
-  const discountPct = calcDiscount(count);
-  const discountAmount = +(originalTotal * (discountPct / 100)).toFixed(2);
-  const finalTotal = +(originalTotal - discountAmount).toFixed(2);
-
+  /* ── Load from Firestore ── */
   useEffect(() => {
-    if (loaded) return;
-    (async () => {
-      let raw = null;
-      if (currentUser) {
-        try { raw = await loadUserSubData(currentUser.uid, 'createSet', 'current'); } catch {}
-      }
-      const n = normalize(raw);
-      setSets(n.sets);
-      setActiveSetId(n.activeSetId);
-      setLoaded(true);
-    })();
-  }, [currentUser, loaded]);
+    setLoaded(false);
+    setLoadingError(null);
 
-  const stateRef = useRef({ sets, activeSetId });
-  stateRef.current = { sets, activeSetId };
+    if (!currentUser) {
+      setSets([]);
+      setLoaded(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const docs = await getAllSetDocs(currentUser.uid);
+        if (cancelled) return;
+
+        if (docs && docs.length > 0) {
+          const parsed = docs.map(d => ({
+            id: d.id,
+            category: d.category || null,
+            productIds: d.productIds || d.products || [], // الحفاظ على التوافق مع الكود القديم
+            createdAt: d.createdAt || Date.now(),
+            updatedAt: d.updatedAt || Date.now(),
+          }));
+          setSets(parsed);
+        } else {
+          try {
+            const localSets = localStorage.getItem('luxe-custom-sets-v2');
+            if (localSets) setSets(JSON.parse(localSets));
+          } catch {}
+        }
+      } catch (e) {
+        if (!cancelled) setLoadingError(e);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [currentUser]);
+
+  /* ── LocalStorage & Firestore Persist ── */
+  const persistRef = useRef({ sets });
+  persistRef.current = { sets };
 
   useEffect(() => {
     if (!loaded) return;
-    const timer = setTimeout(() => {
-      if (currentUser) {
-        saveUserSubData(currentUser.uid, 'createSet', 'current', stateRef.current).catch(() => {});
+
+    try {
+      localStorage.setItem('luxe-custom-sets-v2', JSON.stringify(sets));
+    } catch {}
+
+    if (!currentUser) return;
+
+    const timer = setTimeout(async () => {
+      const { sets: s } = persistRef.current;
+      try {
+        await Promise.all(
+          s.map(set =>
+            saveSetDoc(currentUser.uid, set.id, {
+              category: set.category || null,
+              productIds: set.productIds, // نحفظ الـ IDs فقط
+              createdAt: set.createdAt || Date.now(),
+              updatedAt: Date.now(),
+            })
+          )
+        );
+      } catch (err) {
+        console.error("Error saving sets to Firestore:", err);
       }
-    }, 800);
+    }, SET_PERSIST_DEBOUNCE);
+
     return () => clearTimeout(timer);
-  }, [sets, activeSetId, currentUser, loaded]);
+  }, [sets, loaded, currentUser]);
 
-  const addProduct = useCallback((product, createNew = false) => {
-    if (createNew) {
-      const setId = uid();
-      setSets(prev => [...prev, { id: setId, category: product.category || null, products: [product], createdAt: Date.now() }]);
-      setActiveSetId(setId);
-    } else {
-      const sid = activeSetIdRef.current;
-      setSets(prev => {
-        const idx = prev.findIndex(s => s.id === sid);
-        if (idx === -1) return prev;
-        const set = prev[idx];
-        if (set.products.some(p => String(p.id) === String(product.id))) {
-          toast('This product is already in your set.', { icon: '\u2139\uFE0F', style: { borderRadius: '12px' } });
-          return prev;
-        }
-        const next = [...prev];
-        next[idx] = {
-          ...set,
-          products: [...set.products, product],
-          category: set.category || product.category || null,
-        };
-        return next;
-      });
-    }
-  }, []);
-
-  const removeProduct = useCallback((productId) => {
-    const sid = activeSetIdRef.current;
-    setSets(prev => {
-      const idx = prev.findIndex(s => s.id === sid);
-      if (idx === -1) return prev;
-      const set = prev[idx];
-      const filtered = set.products.filter(p => String(p.id) !== String(productId));
-      const next = [...prev];
-      next[idx] = { ...set, products: filtered, category: filtered.length > 0 ? filtered[0]?.category : null };
-      return next;
-    });
-  }, []);
-
-  const clearSet = useCallback(() => {
-    const sid = activeSetIdRef.current;
-    setSets(prev => {
-      const idx = prev.findIndex(s => s.id === sid);
-      if (idx === -1) return prev;
-      const next = [...prev];
-      next[idx] = { ...next[idx], products: [], category: null };
-      return next;
-    });
-  }, []);
-
+  /* ── createNewSet ── */
   const createNewSet = useCallback(() => {
     const setId = uid();
-    setSets(prev => [...prev, { id: setId, category: null, products: [], createdAt: Date.now() }]);
-    setActiveSetId(setId);
+    const now = Date.now();
+    setSets(prev => [...prev, {
+      id: setId, category: null, productIds: [], createdAt: now, updatedAt: now,
+    }]);
+    return setId; // نرجع الـ ID عشان الصفحة توجهك ليه فوراً
   }, []);
 
-  const switchSet = useCallback((setId) => {
-    setActiveSetId(setId);
-  }, []);
+  /* ── addProduct ── */
+  const addProduct = useCallback((setId, product) => {
+    if (!product || !setId) return;
 
-  const deleteSet = useCallback((setId) => {
     setSets(prev => {
-      const filtered = prev.filter(s => s.id !== setId);
-      if (filtered.length === 0) {
-        const id = uid();
-        setActiveSetId(id);
-        return [{ id, category: null, products: [], createdAt: Date.now() }];
+      const idx = prev.findIndex(s => s.id === setId);
+      if (idx === -1) return prev;
+      const set = prev[idx];
+
+      if (set.category && product.category !== set.category) {
+        toast.error(`This Set already belongs to ${set.category}.`, {
+          style: { borderRadius: '12px', background: '#dc2626', color: '#fff' },
+        });
+        return prev;
       }
-      if (setId === activeSetIdRef.current) {
-        setActiveSetId(filtered[0].id);
+
+      const strId = String(product.id);
+      if (set.productIds.includes(strId)) {
+        toast('This product is already in your set.', { icon: 'ℹ️', style: { borderRadius: '12px' } });
+        return prev;
       }
-      return filtered;
+
+      const next = [...prev];
+      next[idx] = {
+        ...set,
+        productIds: [...set.productIds, strId],
+        category: set.category || product.category || null,
+        updatedAt: Date.now(),
+      };
+      return next;
     });
   }, []);
 
-  const navigate = useNavigate();
+  /* ── removeProduct ── */
+  const removeProduct = useCallback((setId, productId) => {
+    setSets(prev => {
+      const idx = prev.findIndex(s => s.id === setId);
+      if (idx === -1) return prev;
+      const set = prev[idx];
+      
+      const filtered = set.productIds.filter(id => String(id) !== String(productId));
+      const next = [...prev];
+      next[idx] = {
+        ...set, productIds: filtered,
+        category: filtered.length > 0 ? set.category : null, // نحتفظ بالقسم أو نصفره لو فضيت
+        updatedAt: Date.now(),
+      };
+      return next;
+    });
+  }, []);
 
-  const addToCart = useCallback(() => {
-    if (products.length === 0) {
-      toast.error('Your set is empty. Add some products first.', { style: { borderRadius: '12px' } });
-      return;
+  /* ── clearSet ── */
+  const clearSet = useCallback((setId) => {
+    setSets(prev => {
+      const idx = prev.findIndex(s => s.id === setId);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], productIds: [], category: null, updatedAt: Date.now() };
+      return next;
+    });
+  }, []);
+
+  /* ── deleteSet ── */
+  const deleteSet = useCallback((setId) => {
+    setSets(prev => prev.filter(s => s.id !== setId));
+    if (currentUser) {
+      deleteSetDoc(currentUser.uid, setId).catch(() => {});
     }
-    const bundleId = `bundle-${Date.now()}`;
-    const bundleItem = {
-      id: bundleId,
-      name: 'Custom Set',
-      price: finalTotal,
-      quantity: 1,
-      image: products[0]?.image || null,
-      _bundle: true,
-      bundleItems: products.map(p => ({
-        id: p.id, name: p.name, price: p.price, image: p.image, sellerEmail: p.sellerEmail || '',
-      })),
-      bundleDiscount: { originalTotal, discountPercent: discountPct, discountAmount },
-    };
-    addItem(bundleItem, 1, false);
-    toast.success('Custom Set added to cart!', { icon: '\u{1F4E6}', style: { borderRadius: '12px' } });
-    navigate('/cart');
-  }, [products, finalTotal, originalTotal, discountPct, discountAmount, addItem, navigate]);
+  }, [currentUser]);
 
   return {
-    products, category, count, loaded,
-    originalTotal, discountPercent: discountPct, discountAmount, finalTotal,
-    sets, activeSetId,
-    addProduct, removeProduct, clearSet, createNewSet, switchSet, deleteSet, addToCart,
+    sets, loaded, loadingError,
+    createNewSet, addProduct, removeProduct, clearSet, deleteSet
   };
 }

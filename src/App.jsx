@@ -22,6 +22,7 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import OutfitPage from './pages/OutfitPage';
 import CreateSetPage from './pages/CreateSetPage';
+import SetDetailPage from './pages/SetDetailPage'; // ✅ تم إضافة استيراد صفحة السيت المخصصة
 import AdminDashboardPage from './pages/AdminDashboardPage';
 
 const pageVariants = {
@@ -54,7 +55,10 @@ function AppRoutes() {
         <Route path="/privacy-policy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
 
         <Route path="/outfit" element={<PageWrapper><OutfitPage /></PageWrapper>} />
+        
+        {/* ✅ مسارات الـ Create Set بعد فصلها */}
         <Route path="/create-set" element={<ProtectedRoute role="buyer"><PageWrapper><CreateSetPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/create-set/:setId" element={<ProtectedRoute role="buyer"><PageWrapper><SetDetailPage /></PageWrapper></ProtectedRoute>} />
 
         <Route path="/cart" element={
           <ProtectedRoute><PageWrapper><CartPage /></PageWrapper></ProtectedRoute>
