@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -19,9 +19,13 @@ export function ProfilePage() {
   const { currentUser, userData, logout } = useAuth();
   const cartItems             = useCartStore(s => s.items);
   const wishlistItems         = useWishlistStore(s => s.items);
-  const { getOrdersByBuyer }  = useOrderStore();
+  const { getOrdersByBuyer, fetchUserOrders } = useOrderStore();
   const navigate              = useNavigate();
   const [showSellerModal, setShowSellerModal] = useState(false);
+
+  useEffect(() => {
+    if (userData?.uid) fetchUserOrders(userData.uid);
+  }, [userData?.uid]);
 
   if (!currentUser || !userData) {
     return (
@@ -350,8 +354,12 @@ export function ProfilePage() {
 // ─────────────────────────────────────────────────────────────────────────────
 export function OrdersPage() {
   const { currentUser, userData } = useAuth();
-  const { getOrdersByBuyer, confirmDelivery } = useOrderStore();
+  const { getOrdersByBuyer, confirmDelivery, fetchUserOrders, loading } = useOrderStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (userData?.uid) fetchUserOrders(userData.uid);
+  }, [userData?.uid]);
 
   if (!currentUser) {
     return (
@@ -375,12 +383,18 @@ export function OrdersPage() {
 
   const orders = getOrdersByBuyer(userData?.email);
 
-  const handleConfirmDelivery = (orderId) => {
-    confirmDelivery(orderId);
-    toast.success('Delivery confirmed! Payment released to seller.', {
-      icon: '✅',
-      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
-    });
+  const handleConfirmDelivery = async (orderId) => {
+    try {
+      await confirmDelivery(orderId);
+      toast.success('Delivery confirmed! Payment released to seller.', {
+        icon: '✅',
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    } catch {
+      toast.error('Failed to confirm delivery. Please try again.', {
+        style: { borderRadius: '12px' },
+      });
+    }
   };
 
   const statusStyle = {
@@ -397,7 +411,7 @@ export function OrdersPage() {
               My Orders
             </h1>
             <p className="text-stone-500 dark:text-stone-400">
-              {orders.length} order{orders.length !== 1 ? 's' : ''}
+              {loading ? 'Loading...' : `${orders.length} order${orders.length !== 1 ? 's' : ''}`}
             </p>
           </div>
           <button onClick={() => navigate('/products')} className="btn-secondary text-sm py-2 px-4">
@@ -405,7 +419,11 @@ export function OrdersPage() {
           </button>
         </div>
 
-        {orders.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        ) : orders.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
             <div className="w-24 h-24 bg-stone-100 dark:bg-stone-800 rounded-full
                             flex items-center justify-center mb-4 mx-auto">
@@ -430,11 +448,13 @@ export function OrdersPage() {
                 {/* Order header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <div>
-                    <span className="font-mono text-sm font-bold text-orange-500">{order.id}</span>
+                    <span className="font-mono text-sm font-bold text-orange-500">
+                      {order.id?.startsWith('ORD-') ? order.id : `ORD-${order.id.slice(0, 8).toUpperCase()}`}
+                    </span>
                     <p className="text-xs text-stone-400 mt-0.5">
-                      Placed {new Date(order.placedAt).toLocaleDateString('en-US', {
+                      Placed {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric', month: 'long', day: 'numeric',
-                      })}
+                      }) : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -442,7 +462,7 @@ export function OrdersPage() {
                       {order.status}
                     </span>
                     <span className="font-bold text-stone-900 dark:text-stone-100">
-                      ${order.total.toFixed(2)}
+                      ${(order.total || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>

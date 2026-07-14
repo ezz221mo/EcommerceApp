@@ -209,99 +209,128 @@ export const useThemeStore = create(
   )
 );
 
+// Clear old localStorage orders key (migrated to Firestore)
+try { localStorage.removeItem('luxe-orders'); } catch {}
+
 // ── Order Store ───────────────────────────────────────────────────────────────
 /*
-  Order shape:
-  {
-    id:          string  (ORD-timestamp)
-    buyerEmail:  string
-    items:       [{ id, name, price, quantity, image, sellerEmail }]
-    subtotal:    number
-    shipping:    number
-    tax:         number
-    total:       number
-    status:      'Pending' | 'Delivered'
-    placedAt:    ISO string
-  }
+  Firestore-backed order store.
 
-  Seller balance shape (stored inside sellerBalances map):
-  { frozen: number, available: number }
+  Data shape (Firestore doc):
+    id, userId, customerInfo { fullName, email, phone, address, city, zip },
+    items [{ id, name, price, quantity, image, sellerEmail }],
+    sellerEmails [string],
+    subtotal, shipping, tax, discount, total,
+    paymentMethod { type, last4 },
+    couponCode, status, createdAt, updatedAt
+
+  Local cache (in-memory) for synchronous reads.
 */
-export const useOrderStore = create(
-  persist(
-    (set, get) => ({
-      orders: [],          // all orders across all users
-      sellerBalances: {},  // { [sellerEmail]: { frozen, available } }
+import {
+  createOrder as fbCreateOrder,
+  getUserOrders as fbGetUserOrders,
+  getSellerOrders as fbGetSellerOrders,
+  getAllOrders as fbGetAllOrders,
+  updateOrderStatus,
+} from '../services/orderService';
 
-      // ── Place a new order ──────────────────────────────────────────────────
-      placeOrder: ({ buyerEmail, items, subtotal, shipping, tax, total }) => {
-        const newOrder = {
-          id:         `ORD-${Date.now()}`,
-          buyerEmail: buyerEmail.toLowerCase(),
-          items,           // each item should carry sellerEmail
-          subtotal,
-          shipping,
-          tax,
-          total,
-          status:    'Pending',
-          placedAt:  new Date().toISOString(),
-        };
+export const useOrderStore = create((set, get) => ({
+  orders: [],
+  loading: false,
+  loaded: false,
 
-        // Credit each seller's frozen balance
-        const balances = { ...get().sellerBalances };
-        items.forEach(item => {
-          const se = (item.sellerEmail || '').toLowerCase();
-          if (!se) return;
-          if (!balances[se]) balances[se] = { frozen: 0, available: 0 };
-          balances[se].frozen = +(balances[se].frozen + item.price * item.quantity).toFixed(2);
-        });
+  // ── Compute seller balances from cached orders ──────────────────────────
+  _computeBalances: () => {
+    const { orders } = get();
+    const balances = {};
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        const se = (item.sellerEmail || '').toLowerCase();
+        if (!se) return;
+        if (!balances[se]) balances[se] = { frozen: 0, available: 0 };
+        const amount = +(item.price * item.quantity).toFixed(2);
+        if (order.status === 'Pending') {
+          balances[se].frozen = +(balances[se].frozen + amount).toFixed(2);
+        } else if (order.status === 'Delivered') {
+          balances[se].available = +(balances[se].available + amount).toFixed(2);
+        }
+      });
+    });
+    return balances;
+  },
 
-        set(state => ({
-          orders:         [newOrder, ...state.orders],
-          sellerBalances: balances,
-        }));
+  // ── Fetch user's orders from Firestore ─────────────────────────────────
+  fetchUserOrders: async (userId) => {
+    set({ loading: true });
+    try {
+      const orders = await fbGetUserOrders(userId);
+      set({ orders, loading: false, loaded: true });
+    } catch {
+      set({ loading: false });
+    }
+  },
 
-        return newOrder;
-      },
+  // ── Fetch all orders (admin) ───────────────────────────────────────────
+  fetchAllOrders: async () => {
+    set({ loading: true });
+    try {
+      const orders = await fbGetAllOrders();
+      set({ orders, loading: false, loaded: true });
+    } catch {
+      set({ loading: false });
+    }
+  },
 
-      // ── Buyer confirms delivery ────────────────────────────────────────────
-      confirmDelivery: (orderId) => {
-        const order = get().orders.find(o => o.id === orderId);
-        if (!order || order.status === 'Delivered') return;
+  // ── Fetch orders relevant to a seller ──────────────────────────────────
+  fetchSellerOrders: async (sellerEmail) => {
+    set({ loading: true });
+    try {
+      const orders = await fbGetSellerOrders(sellerEmail);
+      set({ orders, loading: false, loaded: true });
+    } catch {
+      set({ loading: false });
+    }
+  },
 
-        const balances = { ...get().sellerBalances };
-        order.items.forEach(item => {
-          const se = (item.sellerEmail || '').toLowerCase();
-          if (!se) return;
-          if (!balances[se]) balances[se] = { frozen: 0, available: 0 };
-          const earned = +(item.price * item.quantity).toFixed(2);
-          balances[se].frozen    = Math.max(0, +(balances[se].frozen    - earned).toFixed(2));
-          balances[se].available = +(balances[se].available + earned).toFixed(2);
-        });
+  // ── Place a new order (Firestore write + local cache) ──────────────────
+  placeOrder: async ({
+    userId, customerInfo, items, subtotal, shipping, tax, discount,
+    total, paymentMethod, couponCode,
+  }) => {
+    const created = await fbCreateOrder({
+      userId, customerInfo, items, subtotal, shipping, tax, discount,
+      total, paymentMethod, couponCode,
+    });
+    set(state => ({ orders: [created, ...state.orders] }));
+    return created;
+  },
 
-        set(state => ({
-          orders: state.orders.map(o =>
-            o.id === orderId ? { ...o, status: 'Delivered' } : o
-          ),
-          sellerBalances: balances,
-        }));
-      },
+  // ── Buyer confirms delivery ────────────────────────────────────────────
+  confirmDelivery: async (orderId) => {
+    await updateOrderStatus(orderId, 'Delivered');
+    set(state => ({
+      orders: state.orders.map(o =>
+        o.id === orderId ? { ...o, status: 'Delivered' } : o
+      ),
+    }));
+  },
 
-      // ── Getters ────────────────────────────────────────────────────────────
-      getOrdersByBuyer:  (email) =>
-        get().orders.filter(o => o.buyerEmail === email.toLowerCase()),
+  // ── Sync getters (read from local cache) ───────────────────────────────
+  getOrdersByBuyer: (email) =>
+    get().orders.filter(o =>
+      (o.customerInfo?.email || '').toLowerCase() === email.toLowerCase()
+    ),
 
-      getOrdersBySeller: (email) =>
-        get().orders.filter(o =>
-          o.items.some(i => (i.sellerEmail || '').toLowerCase() === email.toLowerCase())
-        ),
+  getOrdersBySeller: (email) =>
+    get().orders.filter(o =>
+      o.items.some(i => (i.sellerEmail || '').toLowerCase() === email.toLowerCase())
+    ),
 
-      getSellerBalance: (email) =>
-        get().sellerBalances[(email || '').toLowerCase()] || { frozen: 0, available: 0 },
-    }),
-    { name: 'luxe-orders' }
-  )
-);
+  getSellerBalance: (email) => {
+    const balances = get()._computeBalances();
+    return balances[(email || '').toLowerCase()] || { frozen: 0, available: 0 };
+  },
+}));
 
 // persist → المنتجات بتفضل موجودة بعد الـ refresh
 export const useProductStore = create(

@@ -29,7 +29,7 @@ export default function ProductDetailPage() {
   const [selectedSize,  setSelectedSize]  = useState(0);
   const [activeTab, setActiveTab] = useState('description');
 
-  const { addItem, updateQuantity, isInCart } = useCartStore();
+  const { addItem, removeItem, updateQuantity, isInCart } = useCartStore();
   const { toggleItem, isWishlisted }          = useWishlistStore();
   const { currentUser, userData }             = useAuth();
 
@@ -73,11 +73,19 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product.inStock || isSeller || !currentUser) return;
-    addItem(product, quantity, false);
-    toast.success(`${quantity}× ${product.name} added to cart!`, {
-      icon: '🛒',
-      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
-    });
+    if (inCart) {
+      removeItem(product.id);
+      toast.success(`${product.name} removed from cart!`, {
+        icon: '\u{1F5D1}\uFE0F',
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    } else {
+      addItem(product, quantity, false);
+      toast.success(`${quantity}× ${product.name} added to cart!`, {
+        icon: '\u{1F6D2}',
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+    }
   };
 
   const handleWishlist = () => {
@@ -289,14 +297,18 @@ export default function ProductDetailPage() {
                   </button>
                 </div>
 
-                {/* Add to cart */}
+                {/* Add to cart / Remove from cart */}
                 <motion.button
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                   onClick={handleAddToCart}
-                  className="btn-primary flex-1 text-base py-4"
+                  className={`flex-1 text-base py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
+                    inCart
+                      ? 'bg-rose-50 text-rose-600 border-2 border-rose-200 hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                      : 'btn-primary'
+                  }`}
                 >
                   <HiOutlineShoppingCart className="w-5 h-5" />
-                  {inCart ? 'Update Cart' : `Add to Cart — $${(product.price * quantity).toFixed(2)}`}
+                  {inCart ? 'Remove from Cart' : `Add to Cart — $${(product.price * quantity).toFixed(2)}`}
                 </motion.button>
 
                 {/* Wishlist */}

@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 export default function AdminDashboardPage() {
   const allProducts = useProductStore(s => s.products);
   const allOrders = useOrderStore(s => s.orders);
+  const fetchAllOrders = useOrderStore(s => s.fetchAllOrders);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
   const setTab = (key) => setSearchParams(key === 'overview' ? {} : { tab: key });
@@ -31,6 +32,8 @@ export default function AdminDashboardPage() {
   const [appLoading, setAppLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+
+  useEffect(() => { fetchAllOrders(); }, []);
 
   useEffect(() => {
     let cancelled = false;

@@ -260,7 +260,11 @@ export default function SellerDashboardPage() {
   const { userData }          = useAuth();
   const allProducts       = useProductStore(s => s.products);
   const deleteProduct     = useProductStore(s => s.deleteProduct);
-  const { getOrdersBySeller, getSellerBalance } = useOrderStore();
+  const { getOrdersBySeller, getSellerBalance, fetchSellerOrders, loading } = useOrderStore();
+
+  useEffect(() => {
+    if (userData?.email) fetchSellerOrders(userData.email);
+  }, [userData?.email]);
 
   const products     = allProducts.filter(p =>
     (p.sellerEmail || '').toLowerCase() === (userData?.email || '').toLowerCase()
