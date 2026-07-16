@@ -69,7 +69,7 @@ function AddProductModal({ onClose }) {
     await new Promise(r => setTimeout(r, 800));
 
     // imagePreview is already a base64 string — store it directly
-    addProduct({
+    await addProduct({
       ...form,
       image:       imagePreview || '',
       sellerEmail: userData?.email,
@@ -260,17 +260,21 @@ export default function SellerDashboardPage() {
   const { userData }          = useAuth();
   const allProducts       = useProductStore(s => s.products);
   const deleteProduct     = useProductStore(s => s.deleteProduct);
-  const { getOrdersBySeller, getSellerBalance, fetchSellerOrders, loading } = useOrderStore();
+  const { orders: allOrders, fetchAllOrders } = useOrderStore();
+  const revenue = useOrderStore(s => s.getRevenue)();
 
   useEffect(() => {
-    if (userData?.email) fetchSellerOrders(userData.email);
+    if (userData?.email) fetchAllOrders();
   }, [userData?.email]);
 
   const products     = allProducts.filter(p =>
     (p.sellerEmail || '').toLowerCase() === (userData?.email || '').toLowerCase()
   );
-  const sellerOrders = getOrdersBySeller(userData?.email || '');
-  const balance      = getSellerBalance(userData?.email || '');
+  const sellerOrders = allOrders || [];
+  const balance      = {
+    available: revenue.delivered,
+    frozen: revenue.pending,
+  };
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -367,8 +371,8 @@ export default function SellerDashboardPage() {
     { value: 'free_shipping', label: 'Free Shipping' },
   ];
 
-  const handleDelete = (id) => {
-    deleteProduct(id);
+  const handleDelete = async (id) => {
+    await deleteProduct(id);
     toast.success('Product removed', {
       icon: '🗑️',
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },

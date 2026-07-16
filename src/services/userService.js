@@ -12,10 +12,9 @@ export const createUserDocument = async (uid, name, email) => {
     uid,
     name,
     email,
-    role: 'buyer',
+    role: 'customer',
     photoURL: null,
     createdAt: serverTimestamp(),
-    sellerSince: null,
   };
   await setDoc(doc(db, 'users', uid), userData);
   return userData;

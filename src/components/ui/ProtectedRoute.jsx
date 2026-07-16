@@ -1,14 +1,8 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
-const roleDashboards = {
-  admin:  '/dashboard/admin',
-  seller: '/dashboard/seller',
-  buyer:  '/profile',
-};
-
-export default function ProtectedRoute({ children, role = null }) {
-  const { currentUser, userData, loading } = useAuth();
+export default function ProtectedRoute({ children, requireStoreOwner = false, excludeStoreOwner = false }) {
+  const { currentUser, isStoreOwner, loading } = useAuth();
 
   if (loading) {
     return (
@@ -28,9 +22,12 @@ export default function ProtectedRoute({ children, role = null }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (role && userData?.role !== role) {
-    const fallback = roleDashboards[userData?.role] || '/';
-    return <Navigate to={fallback} replace />;
+  if (requireStoreOwner && !isStoreOwner) {
+    return <Navigate to="/profile" replace />;
+  }
+
+  if (excludeStoreOwner && isStoreOwner) {
+    return <Navigate to="/dashboard/seller" replace />;
   }
 
   return children;

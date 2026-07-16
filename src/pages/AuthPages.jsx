@@ -99,15 +99,10 @@ export function LoginPage() {
   const navigate = useNavigate();
   const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '';
 
-  // After login, navigate by role — ProtectedRoute handles gating
   const getRoleDashboard = (data) => {
     if (!data) return '/';
-    switch (data.role) {
-      case 'admin':  return '/dashboard/admin';
-      case 'seller': return '/dashboard/seller';
-      case 'buyer':  return '/profile';
-      default:       return '/';
-    }
+    if (data.role === 'store_owner' || data.role === 'admin' || data.role === 'seller') return '/dashboard/seller';
+    return '/profile';
   };
 
   const handleChange = (field) => (e) => {

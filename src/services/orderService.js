@@ -74,12 +74,11 @@ export const createOrder = async ({
   const mappedItems = items
     .filter(item => item != null)
     .map(item => ({
-      id:           sanitizeForFirestore(item.id),
-      name:         sanitizeForFirestore(item.name) || '',
-      price:        sanitizeForFirestore(item.price) || 0,
-      quantity:     sanitizeForFirestore(item.quantity) || 1,
-      image:        sanitizeForFirestore(item.image) || '',
-      sellerEmail:  (sanitizeForFirestore(item.sellerEmail) || 'admin@luxe.com').toLowerCase(),
+      id:       sanitizeForFirestore(item.id),
+      name:     sanitizeForFirestore(item.name) || '',
+      price:    sanitizeForFirestore(item.price) || 0,
+      quantity: sanitizeForFirestore(item.quantity) || 1,
+      image:    sanitizeForFirestore(item.image) || '',
     }))
     .filter(i => i.name);
 
@@ -95,7 +94,6 @@ export const createOrder = async ({
       zip:      sanitizeForFirestore(customerInfo?.zip) || '',
     },
     items: mappedItems,
-    sellerEmails: [...new Set(mappedItems.map(i => i.sellerEmail))],
     subtotal:  sanitizeForFirestore(subtotal) || 0,
     shipping:  sanitizeForFirestore(shipping) || 0,
     tax:       sanitizeForFirestore(tax) || 0,
@@ -146,17 +144,6 @@ export const getUserOrders = async (userId) => {
   const q = query(
     collection(db, 'orders'),
     where('userId', '==', userId),
-    fbOrderBy('createdAt', 'desc')
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(mapDoc);
-};
-
-export const getSellerOrders = async (sellerEmail) => {
-  const email = sellerEmail.toLowerCase();
-  const q = query(
-    collection(db, 'orders'),
-    where('sellerEmails', 'array-contains', email),
     fbOrderBy('createdAt', 'desc')
   );
   const snap = await getDocs(q);

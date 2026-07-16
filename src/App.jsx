@@ -14,16 +14,15 @@ import { LoginPage, RegisterPage } from './pages/AuthPages';
 import { ProfilePage, WishlistPage, OrdersPage } from './pages/ProfilePages';
 import { useThemeStore, useProductStore } from './store';
 import ProtectedRoute from './components/ui/ProtectedRoute';
-import SellerDashboardPage from './pages/SellerDashboardPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ScrollToTop from './components/ui/ScrollToTop';
 import AboutPage from './pages/AboutPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import SellerDashboardPage from './pages/SellerDashboardPage';
 import OutfitPage from './pages/OutfitPage';
 import CreateSetPage from './pages/CreateSetPage';
-import SetDetailPage from './pages/SetDetailPage'; // ✅ تم إضافة استيراد صفحة السيت المخصصة
-import AdminDashboardPage from './pages/AdminDashboardPage';
+import SetDetailPage from './pages/SetDetailPage';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -56,40 +55,35 @@ function AppRoutes() {
 
         <Route path="/outfit" element={<PageWrapper><OutfitPage /></PageWrapper>} />
         
-        {/* ✅ مسارات الـ Create Set بعد فصلها */}
-        <Route path="/create-set" element={<ProtectedRoute role="buyer"><PageWrapper><CreateSetPage /></PageWrapper></ProtectedRoute>} />
-        <Route path="/create-set/:setId" element={<ProtectedRoute role="buyer"><PageWrapper><SetDetailPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/create-set" element={<ProtectedRoute><PageWrapper><CreateSetPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/create-set/:setId" element={<ProtectedRoute><PageWrapper><SetDetailPage /></PageWrapper></ProtectedRoute>} />
 
         <Route path="/cart" element={
-          <ProtectedRoute><PageWrapper><CartPage /></PageWrapper></ProtectedRoute>
+          <ProtectedRoute excludeStoreOwner={true}><PageWrapper><CartPage /></PageWrapper></ProtectedRoute>
         } />
         
         <Route path="/checkout" element={
-          <ProtectedRoute><PageWrapper><CheckoutPage /></PageWrapper></ProtectedRoute>
+          <ProtectedRoute excludeStoreOwner={true}><PageWrapper><CheckoutPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/profile" element={
-          <ProtectedRoute><PageWrapper><ProfilePage /></PageWrapper></ProtectedRoute>
+          <ProtectedRoute excludeStoreOwner={true}><PageWrapper><ProfilePage /></PageWrapper></ProtectedRoute>
         } />
         
         <Route path="/wishlist" element={
-          <ProtectedRoute role="buyer"><PageWrapper><WishlistPage /></PageWrapper></ProtectedRoute>
+          <ProtectedRoute excludeStoreOwner={true}><PageWrapper><WishlistPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/dashboard/seller" element={
-          <ProtectedRoute role="seller"><PageWrapper><SellerDashboardPage /></PageWrapper></ProtectedRoute>
-        } />
-
-        <Route path="/dashboard/admin" element={
-          <ProtectedRoute role="admin"><PageWrapper><AdminDashboardPage /></PageWrapper></ProtectedRoute>
+          <ProtectedRoute requireStoreOwner={true}><PageWrapper><SellerDashboardPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/profile/edit" element={
-          <ProtectedRoute><PageWrapper><EditProfilePage /></PageWrapper></ProtectedRoute>
+          <ProtectedRoute excludeStoreOwner={true}><PageWrapper><EditProfilePage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/orders/my-orders" element={
-          <ProtectedRoute><PageWrapper><OrdersPage /></PageWrapper></ProtectedRoute>
+          <ProtectedRoute excludeStoreOwner={true}><PageWrapper><OrdersPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="*" element={
@@ -157,12 +151,12 @@ function AppContent() {
 }
 
 export default function App() {
-  const { initTheme }    = useThemeStore();
-  const { initProducts } = useProductStore();
+  const { initTheme }     = useThemeStore();
+  const { fetchProducts } = useProductStore();
 
   useEffect(() => {
     initTheme();
-    initProducts();
+    fetchProducts();
   }, []);
 
   return (

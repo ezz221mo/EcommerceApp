@@ -9,7 +9,6 @@ import {
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore, useWishlistStore, useOrderStore } from '../store';
-import BecomeSellerForm from '../components/BecomeSellerForm';
 import toast from 'react-hot-toast';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,7 +20,6 @@ export function ProfilePage() {
   const wishlistItems         = useWishlistStore(s => s.items);
   const { getOrdersByBuyer, fetchUserOrders } = useOrderStore();
   const navigate              = useNavigate();
-  const [showSellerModal, setShowSellerModal] = useState(false);
 
   useEffect(() => {
     if (userData?.uid) fetchUserOrders(userData.uid);
@@ -74,12 +72,8 @@ export function ProfilePage() {
               </h2>
               <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">{userData.email}</p>
 
-              <span className={`inline-flex mt-2 items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                userData?.role === 'seller'
-                  ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
-                  : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
-              }`}>
-                {userData?.role === 'seller' ? '🏪 Seller' : '🛍️ Buyer'}
+              <span className="inline-flex mt-2 items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
+                {'\u{1F6CD}\uFE0F'} Customer
               </span>
 
               {/* Live counters */}
@@ -279,69 +273,7 @@ export function ProfilePage() {
               )}
             </motion.div>
 
-            {/* ── Become a Seller ── */}
-            {userData?.role === 'buyer' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="card p-6 text-center"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-teal-500
-                                flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <HiOutlineShoppingBag className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100 mb-2">
-                  Become a Seller
-                </h3>
-                <p className="text-stone-500 dark:text-stone-400 text-sm mb-6 max-w-md mx-auto">
-                  Sell your products on LuxeShop and reach thousands of customers. Set up your store in minutes.
-                </p>
-                <button
-                  onClick={() => setShowSellerModal(true)}
-                  className="btn-primary"
-                >
-                  Start Selling
-                </button>
-              </motion.div>
-            )}
 
-            {/* ── Become Seller Modal ── */}
-            <AnimatePresence>
-              {showSellerModal && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                >
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-black/50"
-                    onClick={() => setShowSellerModal(false)}
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="relative bg-white dark:bg-stone-900 rounded-3xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto"
-                  >
-                    <button
-                      onClick={() => setShowSellerModal(false)}
-                      className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-stone-100 dark:bg-stone-800
-                                 flex items-center justify-center text-stone-500 hover:text-stone-700
-                                 dark:hover:text-stone-300 transition-colors"
-                    >
-                      <HiOutlineX className="w-5 h-5" />
-                    </button>
-                    <div className="p-6">
-                      <BecomeSellerForm onClose={() => setShowSellerModal(false)} />
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </div>

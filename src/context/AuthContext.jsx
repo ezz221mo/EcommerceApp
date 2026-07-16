@@ -11,6 +11,33 @@ import { loadCart, clearCartSession } from '../store';
 
 export const AuthContext = createContext(null);
 
+const STORE_OWNER_EMAIL = 'ezzaldin@gmail.com';
+const OLD_PRIVILEGED_ROLES = ['admin', 'seller'];
+
+async function loadAndMigrateUser(uid, email) {
+  let data = await getUserDocument(uid);
+  if (!data) {
+    if (email === STORE_OWNER_EMAIL) {
+      await createUserDocument(uid, 'Store Owner', email);
+      data = await getUserDocument(uid);
+      if (data) {
+        await updateUserDocument(uid, { role: 'store_owner' });
+        data = await getUserDocument(uid);
+      }
+    }
+    return data;
+  }
+  if (OLD_PRIVILEGED_ROLES.includes(data.role)) {
+    const updated = await updateUserDocument(uid, { role: 'store_owner' });
+    return updated;
+  }
+  if (email === STORE_OWNER_EMAIL && data.role !== 'store_owner') {
+    const updated = await updateUserDocument(uid, { role: 'store_owner' });
+    return updated;
+  }
+  return data;
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -22,7 +49,7 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         loadCart(firebaseUser.uid);
         try {
-          const data = await getUserDocument(firebaseUser.uid);
+          const data = await loadAndMigrateUser(firebaseUser.uid, firebaseUser.email);
           setUserData(data);
         } catch {
           setUserData(null);
@@ -38,7 +65,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const result = await loginUser(email, password);
-    const data = await getUserDocument(result.user.uid);
+    const data = await loadAndMigrateUser(result.user.uid, result.user.email);
     loadCart(result.user.uid);
     setUserData(data);
     return data;
@@ -50,9 +77,8 @@ export function AuthProvider({ children }) {
       uid: result.user.uid,
       name,
       email,
-      role: 'buyer',
+      role: 'customer',
       photoURL: null,
-      sellerSince: null,
     };
     await createUserDocument(result.user.uid, name, email);
     const docSnap = await getUserDocument(result.user.uid);
@@ -68,15 +94,6 @@ export function AuthProvider({ children }) {
     setUserData(null);
   }, []);
 
-  const becomeSeller = useCallback(async () => {
-    if (!currentUser) return;
-    const updated = await updateUserDocument(currentUser.uid, {
-      role: 'seller',
-      sellerSince: new Date().toISOString(),
-    });
-    setUserData(updated);
-  }, [currentUser]);
-
   const refreshUserData = useCallback(async () => {
     if (!currentUser) return null;
     const data = await getUserDocument(currentUser.uid);
@@ -84,15 +101,17 @@ export function AuthProvider({ children }) {
     return data;
   }, [currentUser]);
 
+  const isStoreOwner = userData?.role === 'store_owner' || userData?.role === 'admin' || userData?.role === 'seller';
+
   const value = {
     currentUser,
     userData,
     role: userData?.role || null,
+    isStoreOwner,
     loading,
     login,
     register,
     logout,
-    becomeSeller,
     refreshUserData,
   };
 

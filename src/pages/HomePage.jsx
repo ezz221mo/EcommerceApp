@@ -4,7 +4,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { HiArrowRight, HiStar, HiOutlineTruck, HiOutlineShieldCheck, HiOutlineRefresh, HiOutlineSupport } from 'react-icons/hi';
 import ProductCard from '../components/product/ProductCard';
 import ProductSkeleton from '../components/product/ProductSkeleton';
-import { categories, testimonials } from '../data/products';
+import { testimonials } from '../data/products';
 import { useProductStore } from '../store';
 
 const stagger = {
@@ -26,11 +26,6 @@ const fadeRight = {
   visible: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
 };
 
-const scaleIn = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100, damping: 12 } },
-};
-
 const perks = [
   { icon: HiOutlineTruck, title: 'Free Shipping', desc: 'On all orders over $75' },
   { icon: HiOutlineShieldCheck, title: 'Secure Payment', desc: '100% secure transactions' },
@@ -41,7 +36,7 @@ const perks = [
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const products = useProductStore(s => s.products);
-  const featured = products.filter(p => p.isFeatured);
+  const featured = [...products].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 5);
   const navigate = useNavigate();
 
   const { scrollY } = useScroll();
@@ -52,6 +47,11 @@ export default function HomePage() {
     const t = setTimeout(() => setLoading(false), 900);
     return () => clearTimeout(t);
   }, []);
+
+  const productCount = products.length || 0;
+  const avgRating = products.length
+    ? (products.reduce((s, p) => s + (p.rating || 0), 0) / products.length).toFixed(1)
+    : '0.0';
 
   return (
     <div className="min-h-screen">
@@ -108,23 +108,22 @@ export default function HomePage() {
                 onClick={() => navigate('/products')}
                 className="btn-primary-glow text-base px-8 py-4 rounded-2xl"
               >
-                Shop Now <HiArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Shop Now <HiArrowRight className="w-5 h-5" />
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03, borderColor: '#f97316' }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate('/products?cat=electronics')}
+                onClick={() => navigate('/about')}
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-semibold border-2 border-stone-700 hover:border-orange-500/60 text-stone-300 hover:text-white transition-all duration-200 text-base"
               >
-                View Electronics
+                About Us
               </motion.button>
             </motion.div>
 
             <motion.div variants={fadeUpSpring} className="flex gap-10 mt-14 justify-center lg:justify-start">
               {[
-                { val: '50k+', label: 'Happy Customers' },
-                { val: '2k+', label: 'Products' },
-                { val: '4.9', label: 'Avg Rating', star: true },
+                { val: productCount > 0 ? `${productCount}` : '0', label: 'Products' },
+                { val: avgRating, label: 'Avg Rating', star: true },
               ].map(({ val, label, star }) => (
                 <motion.div
                   key={label}
@@ -184,61 +183,6 @@ export default function HomePage() {
             ))}
           </motion.div>
         </div>
-      </section>
-
-      {/* ── Categories Section ── */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-50px' }}
-          variants={stagger}
-          className="text-center mb-14"
-        >
-          <motion.span variants={fadeUpSpring} className="text-orange-500 font-semibold text-sm uppercase tracking-[0.15em]">Categories</motion.span>
-          <motion.h2 variants={fadeUpSpring} className="font-display text-4xl font-bold text-stone-900 dark:text-stone-100 mt-3 mb-3">Shop by Category</motion.h2>
-          <motion.p variants={fadeUpSpring} className="text-stone-500 dark:text-stone-400 text-lg">Find exactly what you&apos;re looking for</motion.p>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-30px' }}
-          variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4"
-        >
-          {categories.map((cat) => (
-            <motion.div
-              key={cat.id}
-              variants={{
-                hidden: { opacity: 0, y: 24, scale: 0.95 },
-                visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 80, damping: 14 } },
-              }}
-              whileHover={{ y: -6, scale: 1.03 }}
-            >
-              <Link
-                to={`/products?cat=${cat.id}`}
-                className="flex flex-col items-center gap-3 p-6 card card-hover group relative overflow-hidden"
-              >
-                <motion.div
-                  whileHover={{ rotate: [0, -5, 5, 0], scale: 1.1 }}
-                  transition={{ duration: 0.3 }}
-                  className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-lg group-hover:shadow-xl transition-shadow duration-300`}
-                >
-                  {cat.icon}
-                </motion.div>
-                <span className="text-sm font-semibold text-stone-700 dark:text-stone-300 text-center group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
-                  {cat.name}
-                </span>
-                <motion.div
-                  initial={{ scaleX: 0 }}
-                  whileHover={{ scaleX: 1 }}
-                  className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-orange-500 to-teal-500 rounded-full origin-left"
-                />
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
       </section>
 
       {/* ── Featured Products Section ── */}
@@ -368,7 +312,6 @@ export default function HomePage() {
       <section className="py-20 bg-stone-900 dark:bg-stone-950 relative overflow-hidden">
         <div className="absolute inset-0 bg-mesh opacity-30" />
         <div className="absolute inset-0 bg-grid opacity-20" />
-
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"

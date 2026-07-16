@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineClipboardCheck, HiOutlineArrowLeft, HiOutlineLockClosed, HiOutlineTruck, HiOutlineCreditCard, HiOutlineCheckCircle, HiOutlineShieldCheck, HiOutlineTag, HiOutlineX, HiOutlinePencil, HiOutlineCheck } from 'react-icons/hi';
@@ -15,7 +15,7 @@ const steps = [
 
 const spring = { type: 'spring', stiffness: 150, damping: 18 };
 
-/* ── Validation helpers ── */
+/* ظ¤ظ¤ Validation helpers ظ¤ظ¤ */
 function luhnCheck(num) {
   let sum = 0; let alt = false;
   for (let i = num.length - 1; i >= 0; i--) {
@@ -219,7 +219,6 @@ export default function CheckoutPage() {
       price: item.price,
       quantity: item.quantity,
       image: item.image,
-      sellerEmail: item.sellerEmail || 'admin@luxe.com',
     }));
 
     const cardType = detectCardType(form.cardNumber);
@@ -371,7 +370,7 @@ export default function CheckoutPage() {
           </div>
         </motion.div>
 
-        {/* ── SHIPPING / PAYMENT STEP ── */}
+        {/* ظ¤ظ¤ SHIPPING / PAYMENT STEP ظ¤ظ¤ */}
         {step === 'shipping' && (
           <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-8">
 
@@ -509,7 +508,7 @@ export default function CheckoutPage() {
                   whileTap={!loading ? { scale: 0.99 } : {}}
                   className="btn-primary-glow w-full py-4 text-base justify-center"
                 >
-                  <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review — ${total.toFixed(2)}</>
+                  <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review ظ¤ ${total.toFixed(2)}</>
                 </motion.button>
               </div>
             </div>
@@ -616,7 +615,7 @@ export default function CheckoutPage() {
                     whileTap={!loading ? { scale: 0.98 } : {}}
                     className="btn-primary-glow w-full py-4 text-base justify-center"
                   >
-                    <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review — ${total.toFixed(2)}</>
+                    <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review ظ¤ ${total.toFixed(2)}</>
                   </motion.button>
 
                   <div className="flex items-center justify-center gap-1.5 text-xs text-stone-400">
@@ -629,7 +628,7 @@ export default function CheckoutPage() {
           </form>
         )}
 
-        {/* ── REVIEW STEP ── */}
+        {/* ظ¤ظ¤ REVIEW STEP ظ¤ظ¤ */}
         <AnimatePresence>
           {step === 'review' && (
             <motion.div
@@ -765,9 +764,9 @@ export default function CheckoutPage() {
                         className="btn-primary-glow w-full py-4 text-base justify-center"
                       >
                         {loading ? (
-                          <><svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Processing…</>
+                          <><svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Processingظخ</>
                         ) : (
-                          <><HiOutlineCheck className="w-5 h-5" /> Confirm Order — ${total.toFixed(2)}</>
+                          <><HiOutlineCheck className="w-5 h-5" /> Confirm Order ظ¤ ${total.toFixed(2)}</>
                         )}
                       </motion.button>
 

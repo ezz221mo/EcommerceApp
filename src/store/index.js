@@ -209,8 +209,9 @@ export const useThemeStore = create(
   )
 );
 
-// Clear old localStorage orders key (migrated to Firestore)
+// Clear old localStorage caches (migrated to Firestore)
 try { localStorage.removeItem('luxe-orders'); } catch {}
+try { localStorage.removeItem('luxe-products'); } catch {}
 
 // ── Order Store ───────────────────────────────────────────────────────────────
 /*
@@ -229,7 +230,6 @@ try { localStorage.removeItem('luxe-orders'); } catch {}
 import {
   createOrder as fbCreateOrder,
   getUserOrders as fbGetUserOrders,
-  getSellerOrders as fbGetSellerOrders,
   getAllOrders as fbGetAllOrders,
   updateOrderStatus,
 } from '../services/orderService';
@@ -239,27 +239,6 @@ export const useOrderStore = create((set, get) => ({
   loading: false,
   loaded: false,
 
-  // ── Compute seller balances from cached orders ──────────────────────────
-  _computeBalances: () => {
-    const { orders } = get();
-    const balances = {};
-    orders.forEach(order => {
-      order.items.forEach(item => {
-        const se = (item.sellerEmail || '').toLowerCase();
-        if (!se) return;
-        if (!balances[se]) balances[se] = { frozen: 0, available: 0 };
-        const amount = +(item.price * item.quantity).toFixed(2);
-        if (order.status === 'Pending') {
-          balances[se].frozen = +(balances[se].frozen + amount).toFixed(2);
-        } else if (order.status === 'Delivered') {
-          balances[se].available = +(balances[se].available + amount).toFixed(2);
-        }
-      });
-    });
-    return balances;
-  },
-
-  // ── Fetch user's orders from Firestore ─────────────────────────────────
   fetchUserOrders: async (userId) => {
     set({ loading: true });
     try {
@@ -270,7 +249,6 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  // ── Fetch all orders (admin) ───────────────────────────────────────────
   fetchAllOrders: async () => {
     set({ loading: true });
     try {
@@ -281,18 +259,6 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  // ── Fetch orders relevant to a seller ──────────────────────────────────
-  fetchSellerOrders: async (sellerEmail) => {
-    set({ loading: true });
-    try {
-      const orders = await fbGetSellerOrders(sellerEmail);
-      set({ orders, loading: false, loaded: true });
-    } catch {
-      set({ loading: false });
-    }
-  },
-
-  // ── Place a new order (Firestore write + local cache) ──────────────────
   placeOrder: async ({
     userId, customerInfo, items, subtotal, shipping, tax, discount,
     total, paymentMethod, couponCode,
@@ -305,7 +271,6 @@ export const useOrderStore = create((set, get) => ({
     return created;
   },
 
-  // ── Buyer confirms delivery ────────────────────────────────────────────
   confirmDelivery: async (orderId) => {
     await updateOrderStatus(orderId, 'Delivered');
     set(state => ({
@@ -315,87 +280,101 @@ export const useOrderStore = create((set, get) => ({
     }));
   },
 
-  // ── Sync getters (read from local cache) ───────────────────────────────
   getOrdersByBuyer: (email) =>
     get().orders.filter(o =>
       (o.customerInfo?.email || '').toLowerCase() === email.toLowerCase()
     ),
 
-  getOrdersBySeller: (email) =>
-    get().orders.filter(o =>
-      o.items.some(i => (i.sellerEmail || '').toLowerCase() === email.toLowerCase())
-    ),
-
-  getSellerBalance: (email) => {
-    const balances = get()._computeBalances();
-    return balances[(email || '').toLowerCase()] || { frozen: 0, available: 0 };
+  getRevenue: () => {
+    const orders = get().orders;
+    return {
+      total: orders.reduce((s, o) => s + (o.total || 0), 0),
+      pending: orders.filter(o => o.status === 'Pending').reduce((s, o) => s + (o.total || 0), 0),
+      delivered: orders.filter(o => o.status === 'Delivered').reduce((s, o) => s + (o.total || 0), 0),
+      count: orders.length,
+    };
   },
 }));
 
-// persist → المنتجات بتفضل موجودة بعد الـ refresh
-export const useProductStore = create(
-  persist(
-    (set, get) => ({
-      products:      [],
-      _initialized:  false,   // flag عشان نعمل init مرة واحدة بس
+// ── Category Store (Firestore-backed) ─────────────────────────────────────────
+export const useCategoryStore = create((set, get) => ({
+  categories: [],
+  loading: false,
 
-      // ── تهيئة المنتجات الأساسية من ملف البيانات (بس لو مفيش حاجة متخزنة) ──
-      initProducts: async () => {
-        // reload if empty so new sample data always loads
-        if (get()._initialized && get().products.length > 0) return;
-        try {
-          const { products } = await import('../data/products');
-          set({ products, _initialized: true });
-        } catch (e) {
-          console.error('initProducts error:', e);
-        }
-      },
-
-      // ── إضافة منتج جديد (isFeatured: true عشان يظهر في الهوم فوراً) ──
-      addProduct: (product) => {
-        const newProduct = {
-          id:          Date.now(),
-          name:        product.name        || 'Untitled',
-          price:       parseFloat(product.price) || 0,
-          originalPrice: null,
-          category:    product.category    || 'electronics',
-          image:       product.image       || '',
-          images:      product.image ? [product.image] : [],
-          description: product.description || '',
-          badge:       'New',
-          rating:      0,
-          reviews:     0,
-          inStock:     true,
-          isNew:       true,
-          isFeatured:  true,               // ✅ يظهر في Featured Products في الهوم
-          features:    [],
-          createdAt:   new Date().toISOString(),
-          sellerEmail: product.sellerEmail || '',
-        };
-        set(state => ({ products: [newProduct, ...state.products] }));
-        return newProduct;
-      },
-
-      // ── حذف منتج ──
-      deleteProduct: (id) =>
-        set(state => ({ products: state.products.filter(p => p.id !== id) })),
-
-      // ── تعديل منتج ──
-      updateProduct: (id, updates) =>
-        set(state => ({
-          products: state.products.map(p => p.id === id ? { ...p, ...updates } : p),
-        })),
-
-      // ── جلب منتج بالـ ID ──
-      getProductById: (id) => get().products.find(p => p.id === id),
-    }),
-    {
-      name: 'luxe-products',
-      // نحفظ المنتجات والـ flag بس
-      partialize: (state) => ({
-        products:     state.products,
-        _initialized: state._initialized,
-      }),
+  fetchCategories: async () => {
+    set({ loading: true });
+    try {
+      const { getAllCategories } = await import('../services/categoryService');
+      const categories = await getAllCategories();
+      set({ categories, loading: false });
+    } catch {
+      set({ loading: false });
     }
-  )
-);
+  },
+
+  getCategoryBySlug: (slug) => get().categories.find(c => c.slug === slug),
+
+  getSubcategories: (slug) => {
+    const cat = get().categories.find(c => c.slug === slug);
+    return cat?.subcategories || [];
+  },
+}));
+
+// ── Product Store (Firestore-backed) ──────────────────────────────────────────
+export const useProductStore = create((set, get) => ({
+  products: [],
+  loading: false,
+
+  fetchProducts: async () => {
+    set({ loading: true });
+    try {
+      const { getAllProducts } = await import('../services/productService');
+      const products = await getAllProducts();
+      set({ products, loading: false });
+    } catch (e) {
+      set({ loading: false });
+      console.error('fetchProducts error:', e);
+    }
+  },
+
+  addProduct: async (data) => {
+    const { createProduct } = await import('../services/productService');
+    const productData = {
+      name: data.name || 'Untitled',
+      price: parseFloat(data.price) || 0,
+      originalPrice: data.originalPrice ?? null,
+      category: data.category || '',
+      subcategory: data.subcategory || '',
+      image: (data.images?.[0]) || data.image || '',
+      images: data.images?.filter(Boolean) || (data.image ? [data.image] : []),
+      description: data.description || '',
+      badge: 'New',
+      rating: data.rating ?? 0,
+      reviews: data.reviews ?? 0,
+      inStock: data.inStock ?? true,
+      isNew: data.isNew ?? true,
+      features: data.features || [],
+      tags: data.tags || [],
+      stock: data.stock ?? null,
+    };
+    const created = await createProduct(productData);
+    set(state => ({ products: [created, ...state.products] }));
+    return created;
+  },
+
+  deleteProduct: async (id) => {
+    const { deleteProductFromFirestore } = await import('../services/productService');
+    await deleteProductFromFirestore(id);
+    set(state => ({ products: state.products.filter(p => p.id !== id) }));
+  },
+
+  updateProduct: async (id, updates) => {
+    const { updateProductInFirestore } = await import('../services/productService');
+    await updateProductInFirestore(id, updates);
+    set(state => ({
+      products: state.products.map(p => p.id === id ? { ...p, ...updates } : p),
+    }));
+  },
+
+  getProductById: (id) => get().products.find(p => p.id === id),
+}));
