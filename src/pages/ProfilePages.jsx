@@ -5,7 +5,7 @@ import {
   HiOutlineUser, HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker,
   HiOutlineShoppingBag, HiOutlineHeart, HiOutlineLogout,
   HiOutlinePencil, HiOutlineClipboardList, HiOutlineLockClosed,
-  HiOutlineCheck, HiOutlineX,
+  HiOutlineCheck, HiOutlineX, HiOutlineTruck,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore, useWishlistStore, useOrderStore } from '../store';
@@ -240,19 +240,25 @@ export function ProfilePage() {
                       <div>
                         <p className="font-mono text-sm font-bold text-orange-500">{order.id}</p>
                         <p className="text-xs text-stone-400 mt-0.5">
-                          {new Date(order.placedAt).toLocaleDateString('en-US', {
+                          {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
                             month: 'short', day: 'numeric', year: 'numeric',
-                          })}
-                          {' · '}{order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                          }) : ''}
+                          {' · '}{order.items?.length || 0} item{order.items?.length !== 1 ? 's' : ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`badge text-xs ${
-                          order.status === 'Delivered'
+                          (order.orderStatus || order.status) === 'Delivered'
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : (order.orderStatus || order.status) === 'Cancelled'
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                            : (order.orderStatus || order.status) === 'Confirmed'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : (order.orderStatus || order.status) === 'Shipped'
+                            ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
                             : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                         }`}>
-                          {order.status}
+                          {order.orderStatus || order.status}
                         </span>
                         <span className="font-bold text-stone-900 dark:text-stone-100 text-sm">
                           ${order.total.toFixed(2)}
@@ -277,6 +283,52 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDER STATUS TRACKING TIMELINE
+// ─────────────────────────────────────────────────────────────────────────────
+const ORDER_STATUS_FLOW = ['Pending', 'Confirmed', 'Preparing', 'Shipped', 'OutForDelivery', 'Delivered'];
+
+function OrderTimeline({ currentStatus }) {
+  const status = currentStatus === 'Cancelled' ? null : currentStatus;
+  const currentIdx = status ? ORDER_STATUS_FLOW.indexOf(status) : -1;
+
+  return (
+    <div className="space-y-1">
+      {ORDER_STATUS_FLOW.map((s, i) => {
+        const isCompleted = currentIdx >= i;
+        const isCurrent = currentIdx === i;
+        const label = s === 'OutForDelivery' ? 'Out For Delivery' : s;
+        return (
+          <div key={s} className="flex items-start gap-3">
+            <div className="flex flex-col items-center">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border-2 transition-all ${
+                isCompleted
+                  ? 'bg-green-500 border-green-500 text-white'
+                  : isCurrent
+                  ? 'bg-orange-500 border-orange-500 text-white'
+                  : 'bg-stone-100 dark:bg-stone-800 border-stone-300 dark:border-stone-600 text-stone-400'
+              }`}>
+                {isCompleted ? '\u2713' : i + 1}
+              </div>
+            </div>
+            <div className="pb-3">
+              <p className={`text-sm font-semibold ${
+                isCompleted
+                  ? 'text-green-600 dark:text-green-400'
+                  : isCurrent
+                  ? 'text-orange-600 dark:text-orange-400'
+                  : 'text-stone-400 dark:text-stone-500'
+              }`}>
+                {label}
+              </p>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -319,7 +371,7 @@ export function OrdersPage() {
     try {
       await confirmDelivery(orderId);
       toast.success('Delivery confirmed! Payment released to seller.', {
-        icon: '✅',
+        icon: '\u2705',
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
     } catch {
@@ -330,8 +382,13 @@ export function OrdersPage() {
   };
 
   const statusStyle = {
-    Pending:   'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    Delivered: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    Pending:        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    Confirmed:      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    Preparing:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    Shipped:        'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+    OutForDelivery: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    Delivered:      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    Cancelled:      'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
   };
 
   return (
@@ -369,7 +426,9 @@ export function OrdersPage() {
           </motion.div>
         ) : (
           <div className="space-y-5">
-            {orders.map((order, i) => (
+            {orders.map((order, i) => {
+              const orderStatus = order.orderStatus || order.status || 'Pending';
+              return (
               <motion.div
                 key={order.id}
                 initial={{ opacity: 0, y: 12 }}
@@ -381,7 +440,7 @@ export function OrdersPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <div>
                     <span className="font-mono text-sm font-bold text-orange-500">
-                      {order.id?.startsWith('ORD-') ? order.id : `ORD-${order.id.slice(0, 8).toUpperCase()}`}
+                      {order.id?.startsWith('ORD-') ? order.id : `#${order.id?.slice(0, 8).toUpperCase()}`}
                     </span>
                     <p className="text-xs text-stone-400 mt-0.5">
                       Placed {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
@@ -390,8 +449,8 @@ export function OrdersPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`badge ${statusStyle[order.status] || statusStyle.Pending}`}>
-                      {order.status}
+                    <span className={`badge ${statusStyle[orderStatus] || statusStyle.Pending}`}>
+                      {orderStatus === 'OutForDelivery' ? 'Out For Delivery' : orderStatus}
                     </span>
                     <span className="font-bold text-stone-900 dark:text-stone-100">
                       ${(order.total || 0).toFixed(2)}
@@ -401,7 +460,7 @@ export function OrdersPage() {
 
                 {/* Items */}
                 <div className="space-y-2 mb-4">
-                  {order.items.map((item, j) => (
+                  {order.items?.map((item, j) => (
                     <div key={j} className="flex items-center gap-3 p-3
                                              bg-stone-50 dark:bg-stone-800/50 rounded-xl">
                       <div className="w-12 h-12 rounded-xl overflow-hidden bg-stone-200 dark:bg-stone-700 flex-shrink-0">
@@ -424,26 +483,79 @@ export function OrdersPage() {
                   ))}
                 </div>
 
-                {/* Confirm delivery — only for pending orders */}
-                {order.status === 'Pending' && (
+                {/* Shipping Info & Payment Status */}
+                <div className="grid sm:grid-cols-2 gap-3 mb-4 text-sm">
+                  {order.customerInfo?.address && (
+                    <div className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-stone-400 mb-1 uppercase tracking-wider">
+                        <HiOutlineTruck className="w-3.5 h-3.5 inline mr-1" />
+                        Shipping
+                      </p>
+                      <p className="text-stone-900 dark:text-stone-100 font-medium">
+                        {order.customerInfo.address}
+                      </p>
+                      <p className="text-stone-500">
+                        {order.customerInfo.governorate || order.customerInfo.city || ''}
+                        {order.customerInfo.zip ? ` - ${order.customerInfo.zip}` : ''}
+                      </p>
+                      {order.estimatedDelivery && (
+                        <p className="text-stone-500">Est: {order.estimatedDelivery}</p>
+                      )}
+                    </div>
+                  )}
+                  <div className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                    <p className="text-xs font-semibold text-stone-400 mb-1 uppercase tracking-wider">Payment</p>
+                    <p className={`font-semibold ${
+                      (order.paymentStatus || 'Pending') === 'Paid'
+                        ? 'text-green-600 dark:text-green-400'
+                        : (order.paymentStatus || 'Pending') === 'Refunded'
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'text-amber-600 dark:text-amber-400'
+                    }`}>
+                      {order.paymentStatus || 'Pending'}
+                    </p>
+                    {order.paymentMethod?.type && (
+                      <p className="text-stone-500 text-xs">{order.paymentMethod.type} ****{order.paymentMethod.last4}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Order Tracking Timeline */}
+                {orderStatus !== 'Cancelled' ? (
+                  <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-800">
+                    <p className="text-xs font-semibold text-stone-400 mb-3 uppercase tracking-wider">Order Progress</p>
+                    <OrderTimeline currentStatus={orderStatus} />
+                  </div>
+                ) : (
+                  <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-800">
+                    <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 text-sm font-semibold">
+                      <HiOutlineX className="w-4 h-4" />
+                      Order Cancelled
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                {orderStatus === 'OutForDelivery' && (
                   <motion.button
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     onClick={() => handleConfirmDelivery(order.id)}
-                    className="btn-primary text-sm py-2.5 px-5 mt-2"
+                    className="btn-primary text-sm py-2.5 px-5"
                   >
                     <HiOutlineCheck className="w-4 h-4" />
                     Confirm Delivery
                   </motion.button>
                 )}
-                {order.status === 'Delivered' && (
-                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-semibold mt-2">
+                {orderStatus === 'Delivered' && (
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-semibold">
                     <HiOutlineCheck className="w-4 h-4" />
-                    Delivery Confirmed
+                    Delivered & Paid
                   </div>
                 )}
               </motion.div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

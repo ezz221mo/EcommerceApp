@@ -342,7 +342,31 @@ export default function ProductDetailPage() {
             <div className="space-y-3 p-4 bg-stone-100 dark:bg-stone-800/50 rounded-2xl">
               <div className="flex items-center gap-3 text-sm text-stone-600 dark:text-stone-400">
                 <HiOutlineTruck className="w-5 h-5 text-orange-500 flex-shrink-0" />
-                <span>Free shipping on orders over $75</span>
+                <span>
+                  Shipping from{' '}
+                  <span className="font-semibold text-stone-900 dark:text-stone-100">
+                    {product.shipping?.originGovernorate || 'Cairo'}
+                  </span>
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-stone-600 dark:text-stone-400">
+                <HiOutlineTruck className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                <span>
+                  Delivery in{' '}
+                  <span className="font-semibold text-stone-900 dark:text-stone-100">
+                    {product.shipping?.sameGovernorateDelivery || '1-2 days'}
+                  </span>
+                  {' '}within <span className="font-semibold text-stone-900 dark:text-stone-100">{product.shipping?.originGovernorate || 'Cairo'}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-stone-600 dark:text-stone-400">
+                <HiOutlineTruck className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                <span>
+                  Other governorates:{' '}
+                  <span className="font-semibold text-stone-900 dark:text-stone-100">
+                    {product.shipping?.otherGovernoratesDelivery || '5-7 days'}
+                  </span>
+                </span>
               </div>
               <div className="flex items-center gap-3 text-sm text-stone-600 dark:text-stone-400">
                 <HiOutlineShieldCheck className="w-5 h-5 text-orange-500 flex-shrink-0" />

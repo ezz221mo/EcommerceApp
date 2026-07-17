@@ -7,6 +7,25 @@ import { useAuth } from '../hooks/useAuth';
 import { validateCoupon, incrementCouponUsage } from '../services/couponService';
 import toast from 'react-hot-toast';
 
+const EGYPT_GOVERNORATES = [
+  'Alexandria', 'Aswan', 'Asyut', 'Beheira', 'Beni Suef', 'Cairo', 'Dakahlia',
+  'Damietta', 'Faiyum', 'Gharbia', 'Giza', 'Ismailia', 'Kafr El Sheikh',
+  'Luxor', 'Matruh', 'Minya', 'Monufia', 'New Valley', 'North Sinai',
+  'Port Said', 'Qalyubia', 'Qena', 'Red Sea', 'Sharqia', 'Sohag',
+  'South Sinai', 'Suez',
+];
+
+function computeEstimatedDelivery(cartItems, governorate) {
+  if (!governorate) return null;
+  const itemsWithShipping = cartItems.filter(item => item.shipping);
+  if (itemsWithShipping.length === 0) return null;
+  const shipping = itemsWithShipping[0].shipping;
+  if (governorate === shipping.originGovernorate) {
+    return shipping.sameGovernorateDelivery || null;
+  }
+  return shipping.otherGovernoratesDelivery || null;
+}
+
 const steps = [
   { key: 'shipping', label: 'Shipping', icon: HiOutlineTruck },
   { key: 'payment', label: 'Payment', icon: HiOutlineCreditCard },
@@ -119,6 +138,7 @@ export default function CheckoutPage() {
     address: '',
     city: '',
     zip: '',
+    governorate: '',
     cardNumber: '',
     expiry: '',
     cvv: '',
@@ -133,6 +153,7 @@ export default function CheckoutPage() {
     : coupon.type === 'free_shipping' ? (coupon.value || 0)
     : +(subtotal * (coupon.percent / 100)).toFixed(2);
   const total = subtotal + shipping + tax - discount;
+  const estimatedDelivery = computeEstimatedDelivery(items, form.governorate);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -185,6 +206,7 @@ export default function CheckoutPage() {
       phone: validatePhone(form.phone),
       address: validateAddressField(form.address, 'Street Address'),
       city: validateAddressField(form.city, 'City'),
+      governorate: !form.governorate ? 'Governorate is required.' : null,
       zip: validateAddressField(form.zip, 'ZIP Code'),
       cardNumber: validateCardNumber(form.cardNumber),
       expiry: validateExpiry(form.expiry),
@@ -234,6 +256,7 @@ export default function CheckoutPage() {
           address: form.address,
           city: form.city,
           zip: form.zip,
+          governorate: form.governorate,
         },
         items: orderItems,
         subtotal,
@@ -243,6 +266,7 @@ export default function CheckoutPage() {
         total,
         paymentMethod: { type: cardType || 'Unknown', last4: cardLast4 },
         couponCode: coupon?.code || null,
+        estimatedDelivery: estimatedDelivery || '',
       });
 
       if (coupon?.code) {
@@ -414,9 +438,19 @@ export default function CheckoutPage() {
                     {errors.address && <p className="text-xs text-red-500 mt-1">{errors.address}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">City *</label>
-                    <input type="text" name="city" value={form.city} onChange={handleChange} placeholder="New York" className={`input-field ${errors.city ? 'border-red-400 dark:border-red-500' : ''}`} />
-                    {errors.city && <p className="text-xs text-red-500 mt-1">{errors.city}</p>}
+                    <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Governorate *</label>
+                    <select name="governorate" value={form.governorate} onChange={handleChange}
+                      className={`input-field cursor-pointer ${errors.governorate ? 'border-red-400 dark:border-red-500' : ''}`}>
+                      <option value="">Select governorate</option>
+                      {EGYPT_GOVERNORATES.map(g => (
+                        <option key={g} value={g} className="bg-white dark:bg-stone-800">{g}</option>
+                      ))}
+                    </select>
+                    {errors.governorate && <p className="text-xs text-red-500 mt-1">{errors.governorate}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">City / District</label>
+                    <input type="text" name="city" value={form.city} onChange={handleChange} placeholder="e.g. Nasr City" className="input-field" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">ZIP Code *</label>
@@ -703,8 +737,21 @@ export default function CheckoutPage() {
                     <p>{form.email}</p>
                     {form.phone && <p>{form.phone}</p>}
                     <p>{form.address}</p>
-                    <p>{form.city}, {form.zip}</p>
+                    <p>{form.governorate}{form.city ? ` - ${form.city}` : ''} {form.zip}</p>
                   </div>
+                  {estimatedDelivery && (
+                    <div className="mt-3 pt-3 border-t border-stone-200 dark:border-stone-700">
+                      <div className="flex items-center gap-2 text-sm">
+                        <HiOutlineTruck className="w-4 h-4 text-orange-500" />
+                        <span className="text-stone-600 dark:text-stone-400">
+                          Estimated delivery time:{' '}
+                          <span className="font-semibold text-stone-900 dark:text-stone-100">
+                            {estimatedDelivery}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment Info */}

@@ -232,6 +232,7 @@ import {
   getUserOrders as fbGetUserOrders,
   getAllOrders as fbGetAllOrders,
   updateOrderStatus,
+  updatePaymentStatus,
 } from '../services/orderService';
 
 export const useOrderStore = create((set, get) => ({
@@ -261,11 +262,11 @@ export const useOrderStore = create((set, get) => ({
 
   placeOrder: async ({
     userId, customerInfo, items, subtotal, shipping, tax, discount,
-    total, paymentMethod, couponCode,
+    total, paymentMethod, couponCode, estimatedDelivery,
   }) => {
     const created = await fbCreateOrder({
       userId, customerInfo, items, subtotal, shipping, tax, discount,
-      total, paymentMethod, couponCode,
+      total, paymentMethod, couponCode, estimatedDelivery,
     });
     set(state => ({ orders: [created, ...state.orders] }));
     return created;
@@ -273,9 +274,24 @@ export const useOrderStore = create((set, get) => ({
 
   confirmDelivery: async (orderId) => {
     await updateOrderStatus(orderId, 'Delivered');
+    await updatePaymentStatus(orderId, 'Paid');
     set(state => ({
       orders: state.orders.map(o =>
-        o.id === orderId ? { ...o, status: 'Delivered' } : o
+        o.id === orderId ? { ...o, orderStatus: 'Delivered', paymentStatus: 'Paid' } : o
+      ),
+    }));
+  },
+
+  updateOrder: async (orderId, updates) => {
+    if (updates.orderStatus) {
+      await updateOrderStatus(orderId, updates.orderStatus);
+    }
+    if (updates.paymentStatus) {
+      await updatePaymentStatus(orderId, updates.paymentStatus);
+    }
+    set(state => ({
+      orders: state.orders.map(o =>
+        o.id === orderId ? { ...o, ...updates } : o
       ),
     }));
   },
@@ -289,8 +305,8 @@ export const useOrderStore = create((set, get) => ({
     const orders = get().orders;
     return {
       total: orders.reduce((s, o) => s + (o.total || 0), 0),
-      pending: orders.filter(o => o.status === 'Pending').reduce((s, o) => s + (o.total || 0), 0),
-      delivered: orders.filter(o => o.status === 'Delivered').reduce((s, o) => s + (o.total || 0), 0),
+      pending: orders.filter(o => (o.orderStatus || o.status) === 'Pending').reduce((s, o) => s + (o.total || 0), 0),
+      delivered: orders.filter(o => (o.orderStatus || o.status) === 'Delivered').reduce((s, o) => s + (o.total || 0), 0),
       count: orders.length,
     };
   },

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon,
   HiOutlineMenu, HiOutlineX, HiOutlineLogout, HiOutlineChartBar, HiOutlineChevronDown,
+  HiOutlineViewGrid, HiOutlineTag,
 } from 'react-icons/hi';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartStore, useWishlistStore, useThemeStore, useProductStore, useCategoryStore } from '../../store';
@@ -120,13 +121,7 @@ export default function Navbar() {
 
             {/* Desktop Nav */}
             <div className="hidden lg:flex items-center gap-0.5">
-              {isStoreOwner ? (
-                <NavLink to="/dashboard/seller" className={({ isActive }) => linkClass(isActive)}>
-                  <HiOutlineChartBar className="w-4 h-4 inline mr-1" /> Dashboard
-                </NavLink>
-              ) : (
-                <NavLink to="/" end className={({ isActive }) => linkClass(isActive)}>Home</NavLink>
-              )}
+              <NavLink to="/" end className={({ isActive }) => linkClass(isActive)}>Home</NavLink>
 
               {/* Products dropdown */}
               <div className="relative" data-cat-dropdown>
@@ -178,6 +173,11 @@ export default function Navbar() {
               </div>
 
               <NavLink to="/about" className={({ isActive }) => linkClass(isActive)}>About</NavLink>
+              {isStoreOwner && (
+                <NavLink to="/dashboard/seller" className={({ isActive }) => linkClass(isActive)}>
+                  <HiOutlineChartBar className="w-4 h-4 inline mr-1" /> My Dashboard
+                </NavLink>
+              )}
             </div>
 
             {/* Actions */}
@@ -244,9 +244,17 @@ export default function Navbar() {
                       </div>
                       <div className="py-1">
                         {isStoreOwner ? (
-                          <Link to="/dashboard/seller" className="flex items-center gap-3 px-4 py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors font-semibold">
-                            <HiOutlineChartBar className="w-4 h-4" /> Seller Dashboard
-                          </Link>
+                          <>
+                            <Link to="/dashboard/seller" className="flex items-center gap-3 px-4 py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors font-semibold">
+                              <HiOutlineChartBar className="w-4 h-4" /> My Dashboard
+                            </Link>
+                            <Link to="/dashboard/seller?tab=products" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <HiOutlineViewGrid className="w-4 h-4 text-stone-400" /> Products
+                            </Link>
+                            <Link to="/dashboard/seller?tab=coupons" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <HiOutlineTag className="w-4 h-4 text-stone-400" /> Coupons
+                            </Link>
+                          </>
                         ) : (
                           <>
                             <Link to="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
@@ -319,14 +327,13 @@ export default function Navbar() {
                 </motion.button>
               </div>
               <nav className="flex-1 p-6 space-y-1 overflow-y-auto">
-                {isStoreOwner ? (
+                <NavLink to="/" end onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => `block px-4 py-3 rounded-xl font-medium ${isActive ? 'text-orange-600 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400' : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'}`}
+                >Home</NavLink>
+                {isStoreOwner && (
                   <Link to="/dashboard/seller" onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20"
-                  ><HiOutlineChartBar className="w-5 h-5" /> Dashboard</Link>
-                ) : (
-                  <NavLink to="/" end onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) => `block px-4 py-3 rounded-xl font-medium ${isActive ? 'text-orange-600 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400' : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'}`}
-                  >Home</NavLink>
+                  ><HiOutlineChartBar className="w-5 h-5" /> My Dashboard</Link>
                 )}
                 <NavLink to="/products" end onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => `block px-4 py-3 rounded-xl font-medium ${isActive ? 'text-orange-600 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400' : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'}`}
@@ -355,9 +362,17 @@ export default function Navbar() {
                   {isAuthenticated ? (
                     <>
                       {isStoreOwner ? (
-                        <Link to="/dashboard/seller" onClick={() => setMobileOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-semibold"
-                        ><HiOutlineChartBar className="w-5 h-5" /> Seller Dashboard</Link>
+                        <>
+                          <Link to="/dashboard/seller" onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-semibold"
+                          ><HiOutlineChartBar className="w-5 h-5" /> My Dashboard</Link>
+                          <Link to="/dashboard/seller?tab=products" onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium"
+                          ><HiOutlineViewGrid className="w-5 h-5" /> Products</Link>
+                          <Link to="/dashboard/seller?tab=coupons" onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium"
+                          ><HiOutlineTag className="w-5 h-5" /> Coupons</Link>
+                        </>
                       ) : (
                         <>
                           <Link to="/profile" onClick={() => setMobileOpen(false)}
@@ -386,7 +401,7 @@ export default function Navbar() {
                   {isDark ? <HiOutlineSun className="w-5 h-5" /> : <HiOutlineMoon className="w-5 h-5" />}
                   {isDark ? 'Light Mode' : 'Dark Mode'}
                 </motion.button>
-              {isAuthenticated && !isStoreOwner && (
+              {isAuthenticated && (
                   <motion.button whileHover={{ x: 4 }} onClick={handleLogout}
                     className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-medium"
                   ><HiOutlineLogout className="w-5 h-5" /> Sign Out</motion.button>

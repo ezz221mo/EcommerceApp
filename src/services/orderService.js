@@ -52,11 +52,11 @@ function sanitizeForFirestore(val) {
  * Create a new order in Firestore.
  *
  * Accepted fields:
- *   userId, customerInfo { fullName, email, phone, address, city, zip },
+ *   userId, customerInfo { fullName, email, phone, address, city, zip, governorate },
  *   items [{ id, name, price, quantity, image, sellerEmail }],
  *   subtotal, shipping, tax, discount, total,
  *   paymentMethod { type, last4 },
- *   couponCode
+ *   couponCode, estimatedDelivery
  */
 export const createOrder = async ({
   userId,
@@ -69,6 +69,7 @@ export const createOrder = async ({
   total,
   paymentMethod,
   couponCode,
+  estimatedDelivery,
 }) => {
   // ── 1. Build clean items ───────────────────────────────────────────────
   const mappedItems = items
@@ -86,12 +87,13 @@ export const createOrder = async ({
   const orderPayload = {
     userId: sanitizeForFirestore(userId) || '',
     customerInfo: {
-      fullName: sanitizeForFirestore(customerInfo?.fullName) || '',
-      email:    sanitizeForFirestore(customerInfo?.email) || '',
-      phone:    sanitizeForFirestore(customerInfo?.phone) || '',
-      address:  sanitizeForFirestore(customerInfo?.address) || '',
-      city:     sanitizeForFirestore(customerInfo?.city) || '',
-      zip:      sanitizeForFirestore(customerInfo?.zip) || '',
+      fullName:    sanitizeForFirestore(customerInfo?.fullName) || '',
+      email:       sanitizeForFirestore(customerInfo?.email) || '',
+      phone:       sanitizeForFirestore(customerInfo?.phone) || '',
+      address:     sanitizeForFirestore(customerInfo?.address) || '',
+      city:        sanitizeForFirestore(customerInfo?.city) || '',
+      zip:         sanitizeForFirestore(customerInfo?.zip) || '',
+      governorate: sanitizeForFirestore(customerInfo?.governorate) || '',
     },
     items: mappedItems,
     subtotal:  sanitizeForFirestore(subtotal) || 0,
@@ -104,7 +106,9 @@ export const createOrder = async ({
       last4: sanitizeForFirestore(paymentMethod?.last4) || '',
     },
     couponCode: sanitizeForFirestore(couponCode) || null,
-    status: 'Pending',
+    orderStatus: 'Pending',
+    paymentStatus: 'Pending',
+    estimatedDelivery: sanitizeForFirestore(estimatedDelivery) || '',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -137,6 +141,8 @@ function mapDoc(doc) {
     ...data,
     createdAt: data.createdAt?.toDate?.().toISOString() || data.createdAt || null,
     updatedAt: data.updatedAt?.toDate?.().toISOString() || data.updatedAt || null,
+    orderStatus: data.orderStatus || data.status || 'Pending',
+    paymentStatus: data.paymentStatus || 'Pending',
   };
 }
 
@@ -156,10 +162,16 @@ export const getAllOrders = async () => {
   return snap.docs.map(mapDoc);
 };
 
-export const updateOrderStatus = async (orderId, status) => {
+export const updateOrderStatus = async (orderId, orderStatus) => {
   const ref = doc(db, 'orders', orderId);
-  await updateDoc(ref, { status, updatedAt: serverTimestamp() });
-  return { id: orderId, status };
+  await updateDoc(ref, { orderStatus, updatedAt: serverTimestamp() });
+  return { id: orderId, orderStatus };
+};
+
+export const updatePaymentStatus = async (orderId, paymentStatus) => {
+  const ref = doc(db, 'orders', orderId);
+  await updateDoc(ref, { paymentStatus, updatedAt: serverTimestamp() });
+  return { id: orderId, paymentStatus };
 };
 
 export const getOrder = async (orderId) => {

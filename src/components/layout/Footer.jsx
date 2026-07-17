@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from 'react-icons/hi';
 import { FaTwitter, FaInstagram, FaFacebook, FaLinkedin } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
+import { useCategoryStore } from '../../store';
+import { useEffect, useMemo } from 'react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,22 +37,22 @@ const linkHover = { scale: 1.03, x: 3, transition: { type: 'spring', stiffness: 
 export default function Footer() {
   const { currentUser, userData } = useAuth();
   const isAuthenticated = !!currentUser;
-  const isSeller       = userData?.role === 'seller';
+  const isSeller       = userData?.role === 'seller' || userData?.role === 'store_owner';
   const isAdmin        = userData?.role === 'admin';
   const isBuyer        = userData?.role === 'buyer';
+  const { categories, fetchCategories } = useCategoryStore();
 
-  const shopLinks = [
-    { label: 'All Products',  to: '/products'               },
-    { label: 'Electronics',   to: '/products?cat=electronics'},
-    { label: 'Fashion',       to: '/products?cat=fashion'   },
-    { label: 'Home & Living', to: '/products?cat=home'      },
-    { label: 'Beauty',        to: '/products?cat=beauty'    },
-  ];
+  useEffect(() => { fetchCategories(); }, []);
+
+  const shopLinks = useMemo(() => [
+    { label: 'All Products', to: '/products' },
+    ...categories.map(c => ({ label: c.name, to: `/products?cat=${c.slug}` })),
+  ], [categories]);
 
   const companyLinks = [
     { label: 'About Us', to: '/about' },
     ...(isAuthenticated && isSeller
-      ? [{ label: 'Seller Dashboard', to: '/dashboard/seller' }]
+      ? [{ label: 'My Dashboard', to: '/dashboard/seller' }]
       : []
     ),
   ];

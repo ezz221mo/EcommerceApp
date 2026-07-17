@@ -5,58 +5,72 @@ import {
   HiOutlinePlus, HiOutlineViewGrid, HiOutlineShoppingBag,
   HiOutlineChartBar, HiOutlineCurrencyDollar,
   HiOutlineTrash, HiOutlineEye, HiOutlineX, HiOutlinePhotograph,
-  HiOutlineUpload, HiOutlineTag, HiOutlinePencil,
+  HiOutlineUpload, HiOutlineTag, HiOutlinePencil, HiOutlineCollection,
+  HiOutlineBookmarkAlt, HiOutlineChevronDown,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
-import { useProductStore, useOrderStore } from '../store';
+import { useProductStore, useOrderStore, useCategoryStore } from '../store';
 import {
   getCouponsBySeller,
   createCoupon,
   updateCoupon,
   deleteCoupon,
 } from '../services/couponService';
+import {
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from '../services/categoryService';
 import toast from 'react-hot-toast';
 
-// ─── Add Product Modal (with image upload) ────────────────────────────────────
+// ─── Add Product Modal (with multi-image + dynamic categories) ───────────────
 function AddProductModal({ onClose }) {
   const addProduct = useProductStore(s => s.addProduct);
   const { userData } = useAuth();
+  const { categories: allCategories, fetchCategories } = useCategoryStore();
   const fileRef    = useRef(null);
 
   const [form, setForm] = useState({
-    name: '', price: '', category: 'electronics',
+    name: '', price: '', category: '', subcategory: '',
     stock: '', description: '', features: '',
+    originGovernorate: 'Cairo',
+    sameGovernorateDelivery: '1-2 days',
+    otherGovernoratesDelivery: '5-7 days',
   });
-  const [imageFile,    setImageFile]    = useState(null);   // File object
-  const [imagePreview, setImagePreview] = useState('');     // base64 data URL
-  const [loading,      setLoading]      = useState(false);
+  const [imageFiles,    setImageFiles]    = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [loading,       setLoading]       = useState(false);
 
-  // ── Convert selected file → base64 data URL ──────────────────────────────
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  useEffect(() => { fetchCategories(); }, []);
 
-    // Basic validation
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file', { style: { borderRadius: '12px' } });
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be smaller than 5 MB', { style: { borderRadius: '12px' } });
-      return;
-    }
+  const selectedCatObj = allCategories.find(c => c.slug === form.category);
+  const subcategories = selectedCatObj?.subcategories || [];
 
-    setImageFile(file);
+  // ── Convert selected files → base64 data URLs ────────────────────────────
+  const handleImagesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result);
-    reader.readAsDataURL(file);
+    const valid = files.filter(f => {
+      if (!f.type.startsWith('image/')) { toast.error(`${f.name} is not a valid image`); return false; }
+      if (f.size > 5 * 1024 * 1024) { toast.error(`${f.name} must be smaller than 5 MB`); return false; }
+      return true;
+    });
+    if (valid.length === 0) return;
+
+    Promise.all(valid.map(file => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    }))).then(results => {
+      setImageFiles(prev => [...prev, ...valid]);
+      setImagePreviews(prev => [...prev, ...results]);
+    });
   };
 
-  const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview('');
-    if (fileRef.current) fileRef.current.value = '';
+  const handleRemoveImage = (idx) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== idx));
+    setImagePreviews(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async (e) => {
@@ -65,20 +79,29 @@ function AddProductModal({ onClose }) {
       toast.error('Please fill Name and Price', { style: { borderRadius: '12px' } });
       return;
     }
+    if (imagePreviews.length === 0) {
+      toast.error('Please upload at least one product image', { style: { borderRadius: '12px' } });
+      return;
+    }
     setLoading(true);
     await new Promise(r => setTimeout(r, 800));
 
-    // imagePreview is already a base64 string — store it directly
     await addProduct({
       ...form,
-      image:       imagePreview || '',
+      image:       imagePreviews[0] || '',
+      images:      imagePreviews,
       sellerEmail: userData?.email,
       features: form.features
         ? form.features.split(',').map(f => f.trim()).filter(Boolean)
         : [],
+      shipping: {
+        originGovernorate: form.originGovernorate,
+        sameGovernorateDelivery: form.sameGovernorateDelivery,
+        otherGovernoratesDelivery: form.otherGovernoratesDelivery,
+      },
     });
 
-    toast.success('Product added successfully! 🎉', {
+    toast.success('Product added successfully!', {
       style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
     });
     setLoading(false);
@@ -113,62 +136,52 @@ function AddProductModal({ onClose }) {
           {/* ── Image Upload ─────────────────────────────────────────────── */}
           <div>
             <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
-              Product Image
+              Product Images <span className="text-rose-500">*</span>
             </label>
 
-            {imagePreview ? (
-              /* Preview + remove */
-              <div className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 border-orange-400 shadow-md">
-                <img
-                  src={imagePreview}
-                  alt="preview"
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-rose-600
-                             text-white rounded-full flex items-center justify-center transition-colors"
-                >
-                  <HiOutlineX className="w-4 h-4" />
-                </button>
-                <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg">
-                  {imageFile?.name}
-                </div>
+            {/* Preview grid */}
+            {imagePreviews.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {imagePreviews.map((preview, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border-2 border-stone-200 dark:border-stone-700 group">
+                    <img src={preview} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => handleRemoveImage(idx)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <HiOutlineX className="w-3 h-3" />
+                    </button>
+                    {idx === 0 && (
+                      <span className="absolute bottom-1 left-1 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded font-semibold">
+                        Thumbnail
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {imagePreviews.length < 5 && (
+                  <button type="button" onClick={() => fileRef.current?.click()}
+                    className="aspect-square rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-600 hover:border-orange-400 flex items-center justify-center transition-colors bg-stone-50 dark:bg-stone-800/30"
+                  >
+                    <HiOutlinePlus className="w-5 h-5 text-stone-400" />
+                  </button>
+                )}
               </div>
-            ) : (
-              /* Drop zone */
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-stone-300 dark:border-stone-600
-                           hover:border-orange-400 dark:hover:border-orange-400
-                           rounded-2xl p-8 flex flex-col items-center justify-center gap-3
-                           transition-colors duration-200 cursor-pointer group bg-stone-50 dark:bg-stone-800/30"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-stone-100 dark:bg-stone-800
-                                group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20
-                                flex items-center justify-center transition-colors">
-                  <HiOutlineUpload className="w-6 h-6 text-stone-400 group-hover:text-orange-500 transition-colors" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-stone-700 dark:text-stone-300
-                                group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
-                    Click to upload image
-                  </p>
-                  <p className="text-xs text-stone-400 mt-0.5">PNG, JPG, WEBP · Max 5 MB</p>
-                </div>
-              </button>
             )}
 
-            {/* Hidden file input */}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageChange}
-            />
+            {imagePreviews.length === 0 ? (
+              <button type="button" onClick={() => fileRef.current?.click()}
+                className="w-full border-2 border-dashed border-stone-300 dark:border-stone-600 hover:border-orange-400 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer group bg-stone-50 dark:bg-stone-800/30"
+              >
+                <div className="w-10 h-10 rounded-2xl bg-stone-100 dark:bg-stone-800 group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20 flex items-center justify-center transition-colors">
+                  <HiOutlineUpload className="w-5 h-5 text-stone-400 group-hover:text-orange-500" />
+                </div>
+                <p className="text-sm font-semibold text-stone-600 dark:text-stone-400 group-hover:text-orange-600 transition-colors">
+                  Click to upload images
+                </p>
+                <p className="text-xs text-stone-400">PNG, JPG, WEBP · Max 5 MB each · Up to 5 images</p>
+              </button>
+            ) : null}
+
+            <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImagesChange} />
           </div>
 
           {/* ── Name ──────────────────────────────────────────────────────── */}
@@ -204,18 +217,48 @@ function AddProductModal({ onClose }) {
           {/* ── Category ──────────────────────────────────────────────────── */}
           <div>
             <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
-              Category
+              Category <span className="text-rose-500">*</span>
             </label>
-            <select value={form.category}
-              onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="input-field cursor-pointer">
-              {['electronics', 'fashion', 'home', 'beauty', 'sports', 'books'].map(c => (
-                <option key={c} value={c} className="capitalize bg-white dark:bg-stone-800">
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
-                </option>
-              ))}
-            </select>
+            {allCategories.length === 0 ? (
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl text-sm text-amber-700 dark:text-amber-400">
+                <p className="font-medium mb-1">No categories yet</p>
+                <p>Go to the <span className="font-semibold">Categories</span> tab to create one before adding products.</p>
+              </div>
+            ) : (
+              <select value={form.category}
+                onChange={e => setForm(f => ({ ...f, category: e.target.value, subcategory: '' }))}
+                className="input-field cursor-pointer"
+                required
+              >
+                <option value="">Select category</option>
+                {allCategories.map(c => (
+                  <option key={c.id} value={c.slug} className="bg-white dark:bg-stone-800">
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
+
+          {/* ── Subcategory ────────────────────────────────────────────────── */}
+          {subcategories.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                Subcategory
+              </label>
+              <select value={form.subcategory}
+                onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))}
+                className="input-field cursor-pointer"
+              >
+                <option value="">Select subcategory</option>
+                {subcategories.map(s => (
+                  <option key={s.slug} value={s.slug} className="bg-white dark:bg-stone-800">
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* ── Description ───────────────────────────────────────────────── */}
           <div>
@@ -237,6 +280,39 @@ function AddProductModal({ onClose }) {
               placeholder="Wireless, Fast charging, Waterproof" className="input-field" />
           </div>
 
+          {/* ── Shipping Information ──────────────────────────────────────── */}
+          <div className="border-t border-stone-200 dark:border-stone-700 pt-4">
+            <h3 className="font-display text-base font-bold text-stone-900 dark:text-stone-100 mb-3">
+              Shipping Information
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                  Origin Governorate
+                </label>
+                <input type="text" value={form.originGovernorate}
+                  onChange={e => setForm(f => ({ ...f, originGovernorate: e.target.value }))}
+                  placeholder="e.g. Cairo" className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                  Delivery Time (Same Governorate)
+                </label>
+                <input type="text" value={form.sameGovernorateDelivery}
+                  onChange={e => setForm(f => ({ ...f, sameGovernorateDelivery: e.target.value }))}
+                  placeholder="e.g. 1-2 days" className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                  Delivery Time (Other Governorates)
+                </label>
+                <input type="text" value={form.otherGovernoratesDelivery}
+                  onChange={e => setForm(f => ({ ...f, otherGovernoratesDelivery: e.target.value }))}
+                  placeholder="e.g. 5-7 days" className="input-field" />
+              </div>
+            </div>
+          </div>
+
           {/* ── Actions ───────────────────────────────────────────────────── */}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
@@ -255,12 +331,184 @@ function AddProductModal({ onClose }) {
   );
 }
 
+// ─── Categories Manager ──────────────────────────────────────────────────────
+function CategoriesManager() {
+  const { categories, fetchCategories } = useCategoryStore();
+  const [loading, setLoading] = useState(false);
+  const [editingCat, setEditingCat] = useState(null);
+  const [catForm, setCatForm] = useState({ name: '', subInput: '' });
+  const [subItems, setSubItems] = useState([]);
+
+  useEffect(() => { fetchCategories(); }, []);
+
+  const resetForm = () => {
+    setEditingCat(null);
+    setCatForm({ name: '', subInput: '' });
+    setSubItems([]);
+  };
+
+  const openEdit = (cat) => {
+    setEditingCat(cat);
+    setCatForm({ name: cat.name, subInput: '' });
+    setSubItems(cat.subcategories || []);
+  };
+
+  const addSubItem = () => {
+    const name = catForm.subInput.trim();
+    if (!name) return;
+    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (subItems.some(s => s.slug === slug)) {
+      toast.error('Subcategory already exists', { style: { borderRadius: '12px' } });
+      return;
+    }
+    setSubItems(prev => [...prev, { name, slug }]);
+    setCatForm(f => ({ ...f, subInput: '' }));
+  };
+
+  const removeSubItem = (slug) => {
+    setSubItems(prev => prev.filter(s => s.slug !== slug));
+  };
+
+  const handleSaveCategory = async (e) => {
+    e.preventDefault();
+    if (!catForm.name.trim()) {
+      toast.error('Category name is required', { style: { borderRadius: '12px' } });
+      return;
+    }
+    setLoading(true);
+    try {
+      if (editingCat) {
+        await updateCategory(editingCat.id, { name: catForm.name, subcategories: subItems });
+        toast.success('Category updated!', { style: { borderRadius: '12px' } });
+      } else {
+        await createCategory({ name: catForm.name, subcategories: subItems });
+        toast.success('Category created!', { style: { borderRadius: '12px' } });
+      }
+      resetForm();
+      fetchCategories();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save category', { style: { borderRadius: '12px' } });
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteCategory = async (id, name) => {
+    if (!window.confirm(`Delete category "${name}"? Products using this category will lose their category reference.`)) return;
+    try {
+      await deleteCategory(id);
+      toast.success('Category deleted', { style: { borderRadius: '12px' } });
+      fetchCategories();
+    } catch {
+      toast.error('Failed to delete category', { style: { borderRadius: '12px' } });
+    }
+  };
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      {/* Category Form */}
+      <div className="card p-6">
+        <h3 className="font-display text-lg font-bold text-stone-900 dark:text-stone-100 mb-4">
+          {editingCat ? 'Edit Category' : 'Create Category'}
+        </h3>
+        <form onSubmit={handleSaveCategory} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+              Category Name <span className="text-rose-500">*</span>
+            </label>
+            <input type="text" value={catForm.name}
+              onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Phones" className="input-field" required />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+              Subcategories
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input type="text" value={catForm.subInput}
+                onChange={e => setCatForm(f => ({ ...f, subInput: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubItem(); } }}
+                placeholder="Add subcategory" className="input-field flex-1" />
+              <button type="button" onClick={addSubItem}
+                className="btn-secondary text-sm px-3 whitespace-nowrap">Add</button>
+            </div>
+            {subItems.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {subItems.map(s => (
+                  <span key={s.slug} className="inline-flex items-center gap-1 px-2.5 py-1 bg-stone-100 dark:bg-stone-800 rounded-lg text-xs font-medium text-stone-700 dark:text-stone-300">
+                    {s.name}
+                    <button type="button" onClick={() => removeSubItem(s.slug)}
+                      className="text-stone-400 hover:text-rose-500 transition-colors">
+                      <HiOutlineX className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            {editingCat && (
+              <button type="button" onClick={resetForm} className="btn-secondary flex-1">Cancel</button>
+            )}
+            <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center">
+              {loading ? 'Saving...' : editingCat ? 'Update Category' : 'Create Category'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Categories List */}
+      <div className="card p-6">
+        <h3 className="font-display text-lg font-bold text-stone-900 dark:text-stone-100 mb-4">
+          All Categories ({categories.length})
+        </h3>
+        {categories.length === 0 ? (
+          <div className="text-center py-8">
+            <HiOutlineCollection className="w-10 h-10 text-stone-300 mx-auto mb-3" />
+            <p className="text-stone-500 text-sm">No categories yet. Create your first category.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {categories.map(cat => (
+              <div key={cat.id} className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-stone-900 dark:text-stone-100">{cat.name}</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openEdit(cat)}
+                      className="p-1.5 rounded-lg text-stone-400 hover:text-teal-500 hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors">
+                      <HiOutlinePencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                      className="p-1.5 rounded-lg text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
+                      <HiOutlineTrash className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                {cat.subcategories?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {cat.subcategories.map(s => (
+                      <span key={s.slug} className="px-2 py-0.5 bg-white dark:bg-stone-800 rounded text-xs text-stone-500 dark:text-stone-400">
+                        {s.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function SellerDashboardPage() {
   const { userData }          = useAuth();
   const allProducts       = useProductStore(s => s.products);
   const deleteProduct     = useProductStore(s => s.deleteProduct);
-  const { orders: allOrders, fetchAllOrders } = useOrderStore();
+  const { orders: allOrders, fetchAllOrders, updateOrder } = useOrderStore();
   const revenue = useOrderStore(s => s.getRevenue)();
 
   useEffect(() => {
@@ -379,6 +627,19 @@ export default function SellerDashboardPage() {
     });
   };
 
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await updateOrder(orderId, { orderStatus: newStatus });
+      toast.success(`Order status updated to "${newStatus}"`, {
+        style: { borderRadius: '12px' },
+      });
+    } catch {
+      toast.error('Failed to update order status', {
+        style: { borderRadius: '12px' },
+      });
+    }
+  };
+
   const statsData = [
     {
       label: 'Available Balance',
@@ -397,7 +658,7 @@ export default function SellerDashboardPage() {
     {
       label: 'Total Orders',
       value: sellerOrders.length,
-      sub: `${sellerOrders.filter(o => o.status === 'Pending').length} pending`,
+      sub: `${sellerOrders.filter(o => (o.orderStatus || o.status) === 'Pending').length} pending`,
       icon: HiOutlineShoppingBag,
       color: 'teal',
     },
@@ -418,15 +679,31 @@ export default function SellerDashboardPage() {
   };
 
   const tabs = [
-    { key: 'overview', label: 'Overview', icon: HiOutlineChartBar    },
-    { key: 'products', label: 'Products', icon: HiOutlineViewGrid    },
-    { key: 'orders',   label: 'Orders',   icon: HiOutlineShoppingBag },
-    { key: 'coupons',  label: 'Coupons',  icon: HiOutlineTag         },
+    { key: 'overview',    label: 'Overview',    icon: HiOutlineChartBar    },
+    { key: 'products',    label: 'Products',    icon: HiOutlineViewGrid    },
+    { key: 'categories',  label: 'Categories',  icon: HiOutlineCollection  },
+    { key: 'orders',      label: 'Orders',      icon: HiOutlineShoppingBag },
+    { key: 'coupons',     label: 'Coupons',     icon: HiOutlineTag         },
   ];
 
   const statusStyle = {
-    Pending:   'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    Delivered: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    Pending:        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    Confirmed:      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    Preparing:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    Shipped:        'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+    OutForDelivery: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    Delivered:      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    Cancelled:      'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  };
+
+  const nextOrderStatuses = {
+    Pending:        ['Confirmed', 'Cancelled'],
+    Confirmed:      ['Preparing', 'Cancelled'],
+    Preparing:      ['Shipped', 'Cancelled'],
+    Shipped:        ['OutForDelivery', 'Cancelled'],
+    OutForDelivery: ['Delivered', 'Cancelled'],
+    Delivered:      [],
+    Cancelled:      [],
   };
 
   // ── Helper: thumbnail for a product (base64 or URL) ─────────────────────
@@ -459,7 +736,7 @@ export default function SellerDashboardPage() {
             </div>
             <div>
               <h1 className="font-display text-3xl font-bold text-stone-900 dark:text-stone-100">
-                Seller Dashboard
+                My Dashboard
               </h1>
               <p className="text-stone-500 text-sm mt-0.5">
                 Welcome back, <span className="text-orange-500 font-semibold">{userData?.name?.split(' ')[0]}</span>
@@ -542,25 +819,28 @@ export default function SellerDashboardPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {sellerOrders.slice(0, 4).map(order => (
+                    {sellerOrders.slice(0, 4).map(order => {
+                      const orderStatus = order.orderStatus || order.status || 'Pending';
+                      return (
                       <div key={order.id}
                         className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
                         <div>
-                          <span className="font-mono text-sm font-bold text-orange-500">{order.id}</span>
+                          <span className="font-mono text-sm font-bold text-orange-500">{order.id?.slice(0, 8)}</span>
                           <p className="text-xs text-stone-400 mt-0.5">
-                            {new Date(order.placedAt).toLocaleDateString()} · {order.buyerEmail}
+                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''} · {order.customerInfo?.email || order.buyerEmail || 'N/A'}
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className={`badge text-xs ${statusStyle[order.status] || statusStyle.Pending}`}>
-                            {order.status}
+                          <span className={`badge text-xs ${statusStyle[orderStatus] || statusStyle.Pending}`}>
+                            {orderStatus}
                           </span>
                           <span className="font-bold text-stone-900 dark:text-stone-100">
-                            ${order.total.toFixed(2)}
+                            ${(order.total || 0).toFixed(2)}
                           </span>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </div>
@@ -705,6 +985,17 @@ export default function SellerDashboardPage() {
             </motion.div>
           )}
 
+          {/* ── CATEGORIES TAB ── */}
+          {activeTab === 'categories' && (
+            <motion.div
+              key="categories"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
+            >
+              <CategoriesManager />
+            </motion.div>
+          )}
+
           {/* ── COUPONS TAB ── */}
           {activeTab === 'coupons' && (
             <motion.div
@@ -804,29 +1095,84 @@ export default function SellerDashboardPage() {
                   </div>
                 ) : (
                   <div className="divide-y divide-stone-100 dark:divide-stone-800">
-                    {sellerOrders.map(order => (
+                    {sellerOrders.map(order => {
+                      const orderStatus = order.orderStatus || order.status || 'Pending';
+                      const nextActions = nextOrderStatuses[orderStatus] || [];
+                      return (
                       <div key={order.id} className="p-6 hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors">
+                        {/* Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                           <div>
-                            <span className="font-mono text-sm font-bold text-orange-500">{order.id}</span>
+                            <span className="font-mono text-sm font-bold text-orange-500">
+                              #{order.id?.slice(0, 8).toUpperCase()}
+                            </span>
                             <p className="text-xs text-stone-400 mt-0.5">
-                              Buyer: {order.buyerEmail} ·{' '}
-                              {new Date(order.placedAt).toLocaleDateString('en-US', {
+                              {order.customerInfo?.fullName || 'Customer'} ·{' '}
+                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
                                 month: 'short', day: 'numeric', year: 'numeric',
-                              })}
+                              }) : ''}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className={`badge ${statusStyle[order.status] || statusStyle.Pending}`}>
-                              {order.status}
+                            <span className={`badge ${statusStyle[orderStatus] || statusStyle.Pending}`}>
+                              {orderStatus === 'OutForDelivery' ? 'Out For Delivery' : orderStatus}
                             </span>
                             <span className="font-bold text-stone-900 dark:text-stone-100">
-                              ${order.total.toFixed(2)}
+                              ${(order.total || 0).toFixed(2)}
                             </span>
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          {order.items.map((item, i) => (
+
+                        {/* Customer & Shipping Info */}
+                        <div className="grid sm:grid-cols-2 gap-3 mb-4 text-sm">
+                          <div className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                            <p className="text-xs font-semibold text-stone-400 mb-1 uppercase tracking-wider">Customer</p>
+                            <p className="text-stone-900 dark:text-stone-100 font-medium">
+                              {order.customerInfo?.fullName || 'N/A'}
+                            </p>
+                            <p className="text-stone-500">{order.customerInfo?.email || order.buyerEmail || 'N/A'}</p>
+                            {order.customerInfo?.phone && (
+                              <p className="text-stone-500">{order.customerInfo.phone}</p>
+                            )}
+                          </div>
+                          <div className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                            <p className="text-xs font-semibold text-stone-400 mb-1 uppercase tracking-wider">
+                              Shipping
+                            </p>
+                            <p className="text-stone-900 dark:text-stone-100 font-medium">
+                              {order.customerInfo?.address || 'N/A'}
+                            </p>
+                            <p className="text-stone-500">
+                              {order.customerInfo?.governorate || order.customerInfo?.city || ''}
+                              {order.customerInfo?.zip ? ` - ${order.customerInfo.zip}` : ''}
+                            </p>
+                            {order.estimatedDelivery && (
+                              <p className="text-stone-500">
+                                Est. delivery: {order.estimatedDelivery}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Payment & Order Status */}
+                        <div className="flex items-center gap-4 mb-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-stone-400">Payment:</span>
+                            <span className={`font-semibold ${
+                              (order.paymentStatus || 'Pending') === 'Paid'
+                                ? 'text-green-600 dark:text-green-400'
+                                : (order.paymentStatus || 'Pending') === 'Refunded'
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : 'text-amber-600 dark:text-amber-400'
+                            }`}>
+                              {order.paymentStatus || 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Items */}
+                        <div className="space-y-2 mb-4">
+                          {order.items?.map((item, i) => (
                             <div key={i} className="flex items-center gap-3 text-sm bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
                               {item.image ? (
                                 <img src={item.image} alt={item.name}
@@ -844,8 +1190,30 @@ export default function SellerDashboardPage() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Status Actions */}
+                        {nextActions.length > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap pt-3 border-t border-stone-100 dark:border-stone-800">
+                            {nextActions.map(action => (
+                              <motion.button
+                                key={action}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => handleUpdateOrderStatus(order.id, action)}
+                                className={`text-sm py-1.5 px-3 rounded-xl font-semibold transition-all ${
+                                  action === 'Cancelled'
+                                    ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400 dark:hover:bg-rose-900/40'
+                                    : 'bg-orange-50 text-orange-600 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40'
+                                }`}
+                              >
+                                {action === 'OutForDelivery' ? 'Out For Delivery' : action}
+                              </motion.button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </div>
