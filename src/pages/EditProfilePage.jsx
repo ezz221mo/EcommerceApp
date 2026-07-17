@@ -5,7 +5,7 @@ import {
   HiOutlineUser, HiOutlineMail, HiOutlineLockClosed,
   HiOutlineEye, HiOutlineEyeOff, HiOutlineCheck,
   HiOutlineArrowLeft, HiOutlineExclamationCircle,
-  HiOutlineShieldCheck,
+  HiOutlineShieldCheck, HiOutlinePhone, HiOutlineLocationMarker,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -28,12 +28,13 @@ const FieldError = ({ msg }) =>
 const EMAIL_RE   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PWD_STR_RE = /^(?=.*[A-Za-z])(?=.*\d).+$/;
 
-function validateEdit({ name, email, newPassword, confirmPassword }) {
+function validateEdit({ name, email, phone, newPassword, confirmPassword }) {
   const err = {};
   if (!name.trim())             err.name  = 'Name is required';
   else if (name.trim().length < 3) err.name = 'Name must be at least 3 characters';
   if (!email.trim())            err.email = 'Email is required';
   else if (!EMAIL_RE.test(email)) err.email = 'Enter a valid email address';
+  if (phone && !/^[\d\s\-+()]{7,20}$/.test(phone)) err.phone = 'Enter a valid phone number';
   if (newPassword) {
     if (newPassword.length < 6)        err.newPassword = 'Password must be at least 6 characters';
     else if (!PWD_STR_RE.test(newPassword)) err.newPassword = 'Must contain letters and numbers';
@@ -51,6 +52,11 @@ export default function EditProfilePage() {
   const [form, setForm] = useState({
     name:            userData?.name  || '',
     email:           userData?.email || '',
+    phone:           userData?.phone || '',
+    address:         userData?.address || '',
+    city:            userData?.city || '',
+    governorate:     userData?.governorate || '',
+    zip:             userData?.zip || '',
     newPassword:     '',
     confirmPassword: '',
   });
@@ -80,6 +86,11 @@ export default function EditProfilePage() {
       await updateUserDocument(currentUser.uid, {
         name: form.name.trim(),
         email: form.email.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        city: form.city.trim(),
+        governorate: form.governorate.trim(),
+        zip: form.zip.trim(),
       });
       toast.success('Profile updated successfully! ✅', {
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
@@ -171,6 +182,54 @@ export default function EditProfilePage() {
                 <AnimatePresence mode="wait">
                   {errors.email && <FieldError key="email-err" msg={errors.email} />}
                 </AnimatePresence>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <HiOutlinePhone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <input type="tel" value={form.phone} onChange={handleChange('phone')}
+                    placeholder="+1 234 567 8900" autoComplete="tel" className={inputClass('phone')} />
+                </div>
+                <AnimatePresence mode="wait">
+                  {errors.phone && <FieldError key="phone-err" msg={errors.phone} />}
+                </AnimatePresence>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                  Address
+                </label>
+                <div className="relative">
+                  <HiOutlineLocationMarker className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <input type="text" value={form.address} onChange={handleChange('address')}
+                    placeholder="123 Main Street" autoComplete="street-address" className={inputClass('address')} />
+                </div>
+              </div>
+
+              {/* City + Governorate row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">City</label>
+                  <input type="text" value={form.city} onChange={handleChange('city')}
+                    placeholder="New York" autoComplete="address-level2" className="input-field" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Governorate / State</label>
+                  <input type="text" value={form.governorate} onChange={handleChange('governorate')}
+                    placeholder="New York" autoComplete="address-level1" className="input-field" />
+                </div>
+              </div>
+
+              {/* ZIP */}
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">ZIP / Postal Code</label>
+                <input type="text" value={form.zip} onChange={handleChange('zip')}
+                  placeholder="10001" autoComplete="postal-code" className="input-field" />
               </div>
             </div>
 

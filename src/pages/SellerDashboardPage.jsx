@@ -385,7 +385,7 @@ function CategoriesManager() {
         toast.success('Category created!', { style: { borderRadius: '12px' } });
       }
       resetForm();
-      fetchCategories();
+      fetchCategories(true);
     } catch (err) {
       toast.error(err.message || 'Failed to save category', { style: { borderRadius: '12px' } });
     }
@@ -397,7 +397,7 @@ function CategoriesManager() {
     try {
       await deleteCategory(id);
       toast.success('Category deleted', { style: { borderRadius: '12px' } });
-      fetchCategories();
+      fetchCategories(true);
     } catch {
       toast.error('Failed to delete category', { style: { borderRadius: '12px' } });
     }
@@ -530,6 +530,15 @@ export default function SellerDashboardPage() {
   const activeTab = searchParams.get('tab') || 'overview';
   const setTab    = (key) => setSearchParams(key === 'overview' ? {} : { tab: key });
 
+  const highlightOrderId = searchParams.get('orderId');
+  useEffect(() => {
+    if (highlightOrderId && activeTab === 'orders') {
+      setTimeout(() => {
+        document.getElementById(`order-${highlightOrderId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [highlightOrderId, activeTab]);
+
   // ── Coupon State ──────────────────────────────────────────────────────────
   const [sellerCoupons, setSellerCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
@@ -619,6 +628,8 @@ export default function SellerDashboardPage() {
     { value: 'free_shipping', label: 'Free Shipping' },
   ];
 
+  const fetchProducts = useProductStore(s => s.fetchProducts);
+
   const handleDelete = async (id) => {
     await deleteProduct(id);
     toast.success('Product removed', {
@@ -630,6 +641,9 @@ export default function SellerDashboardPage() {
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
       await updateOrder(orderId, { orderStatus: newStatus });
+      if (['Cancelled', 'Delivered'].includes(newStatus)) {
+        fetchProducts();
+      }
       toast.success(`Order status updated to "${newStatus}"`, {
         style: { borderRadius: '12px' },
       });
@@ -822,8 +836,8 @@ export default function SellerDashboardPage() {
                     {sellerOrders.slice(0, 4).map(order => {
                       const orderStatus = order.orderStatus || order.status || 'Pending';
                       return (
-                      <div key={order.id}
-                        className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
+                      <button key={order.id} onClick={() => setSearchParams({ tab: 'orders', orderId: order.id })}
+                        className="flex items-center justify-between w-full p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-left">
                         <div>
                           <span className="font-mono text-sm font-bold text-orange-500">{order.id?.slice(0, 8)}</span>
                           <p className="text-xs text-stone-400 mt-0.5">
@@ -838,7 +852,7 @@ export default function SellerDashboardPage() {
                             ${(order.total || 0).toFixed(2)}
                           </span>
                         </div>
-                      </div>
+                      </button>
                     );
                     })}
                   </div>
@@ -1099,7 +1113,7 @@ export default function SellerDashboardPage() {
                       const orderStatus = order.orderStatus || order.status || 'Pending';
                       const nextActions = nextOrderStatuses[orderStatus] || [];
                       return (
-                      <div key={order.id} className="p-6 hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors">
+                      <div key={order.id} id={`order-${order.id}`} className={`p-6 transition-colors ${highlightOrderId === order.id ? 'bg-orange-50 dark:bg-orange-950/20 ring-2 ring-orange-500/30' : 'hover:bg-stone-50 dark:hover:bg-stone-800/30'}`}>
                         {/* Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                           <div>

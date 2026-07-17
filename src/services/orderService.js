@@ -11,6 +11,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
+import { adjustStockAtomic } from './productService';
 
 /**
  * Recursively clean a value for Firestore compatibility.
@@ -119,10 +120,31 @@ export const createOrder = async ({
     console.log('[orderService] createOrder payload:', logSafe);
   }
 
-  // ── 4. Write to Firestore ──────────────────────────────────────────────
+  // ── 4. Save stock snapshot before reduction ───────────────────────────
+  const stockBefore = {};
+  for (const item of mappedItems) {
+    try {
+      const snap = await getDoc(doc(db, 'products', item.id));
+      if (snap.exists()) {
+        const currentStock = parseInt(snap.data().stock);
+        if (!isNaN(currentStock)) {
+          stockBefore[item.id] = currentStock;
+        }
+      }
+    } catch { /* skip items without stock tracking */ }
+  }
+
+  // ── 5. Write to Firestore ──────────────────────────────────────────────
   const docRef = await addDoc(collection(db, 'orders'), orderPayload);
 
-  // ── 5. Return clean result (no FieldValue sentinels) ────────────────────
+  // ── 6. Reduce stock atomically for each item ────────────────────────────
+  for (const item of mappedItems) {
+    if (stockBefore[item.id] !== undefined) {
+      await adjustStockAtomic(item.id, -item.quantity);
+    }
+  }
+
+  // ── 7. Return clean result (no FieldValue sentinels) ────────────────────
   const now = new Date().toISOString();
   return {
     id: docRef.id,
@@ -164,6 +186,27 @@ export const getAllOrders = async () => {
 
 export const updateOrderStatus = async (orderId, orderStatus) => {
   const ref = doc(db, 'orders', orderId);
+
+  // Restore stock when order is cancelled
+  if (orderStatus === 'Cancelled') {
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const order = snap.data();
+        for (const item of (order.items || [])) {
+          if (item.id && item.quantity) {
+            try {
+              const productSnap = await getDoc(doc(db, 'products', item.id));
+              if (productSnap.exists()) {
+                await adjustStockAtomic(item.id, item.quantity);
+              }
+            } catch { /* skip items without stock tracking */ }
+          }
+        }
+      }
+    } catch { /* skip if order not found */ }
+  }
+
   await updateDoc(ref, { orderStatus, updatedAt: serverTimestamp() });
   return { id: orderId, orderStatus };
 };

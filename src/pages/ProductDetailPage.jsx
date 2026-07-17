@@ -31,9 +31,9 @@ export default function ProductDetailPage() {
 
   const { addItem, removeItem, updateQuantity, isInCart } = useCartStore();
   const { toggleItem, isWishlisted }          = useWishlistStore();
-  const { currentUser, userData }             = useAuth();
+  const { currentUser, userData, isStoreOwner } = useAuth();
 
-  const isSeller   = userData?.role === 'seller';
+  const isSeller   = isStoreOwner;
   const isAdmin    = userData?.role === 'admin';
   const wishlisted = product ? isWishlisted(product.id) : false;
   const inCart     = product ? isInCart(product.id)     : false;

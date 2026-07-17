@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineSun, HiOutlineMoon,
   HiOutlineMenu, HiOutlineX, HiOutlineLogout, HiOutlineChartBar, HiOutlineChevronDown,
-  HiOutlineViewGrid, HiOutlineTag,
+  HiOutlineViewGrid, HiOutlineTag, HiOutlineTemplate,
 } from 'react-icons/hi';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartStore, useWishlistStore, useThemeStore, useProductStore, useCategoryStore } from '../../store';
@@ -191,6 +191,12 @@ export default function Navbar() {
                 {isDark ? <HiOutlineSun className="w-5 h-5" /> : <HiOutlineMoon className="w-5 h-5" />}
               </motion.button>
 
+              {isAuthenticated && !isStoreOwner && (
+                <Link to="/create-set" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+                  <HiOutlineTemplate className="w-5 h-5" />
+                </Link>
+              )}
+
               {isAuthenticated && (
                 <>
                   <Link to="/wishlist" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
@@ -224,12 +230,25 @@ export default function Navbar() {
                     onClick={() => setUserMenuOpen(v => !v)}
                     className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl transition-all ${darkText ? 'hover:bg-stone-100 dark:hover:bg-stone-800' : 'hover:bg-white/10'}`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-teal-500 flex items-center justify-center text-white text-xs font-bold border-2 border-orange-400">
-                      {userData?.name?.charAt(0).toUpperCase()}
-                    </div>
-                    <span className={`text-sm font-medium max-w-[80px] truncate ${darkText ? 'text-stone-700 dark:text-stone-300' : 'text-white/90'}`}>
-                      {userData?.name?.split(' ')[0]}
-                    </span>
+                    {isStoreOwner ? (
+                      <>
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-teal-500 flex items-center justify-center text-white border-2 border-orange-400">
+                          <HiOutlineChartBar className="w-4 h-4" />
+                        </div>
+                        <span className={`text-sm font-medium max-w-[90px] truncate ${darkText ? 'text-stone-700 dark:text-stone-300' : 'text-white/90'}`}>
+                          My Dashboard
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-teal-500 flex items-center justify-center text-white text-xs font-bold border-2 border-orange-400">
+                          {userData?.name?.charAt(0).toUpperCase()}
+                        </div>
+                        <span className={`text-sm font-medium max-w-[80px] truncate ${darkText ? 'text-stone-700 dark:text-stone-300' : 'text-white/90'}`}>
+                          {userData?.name?.split(' ')[0]}
+                        </span>
+                      </>
+                    )}
                   </motion.button>
                   {userMenuOpen && (
                     <motion.div
@@ -265,6 +284,9 @@ export default function Navbar() {
                             </Link>
                             <Link to="/wishlist" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                               <HiOutlineHeart className="w-4 h-4 text-stone-400" /> Wishlist
+                            </Link>
+                            <Link to="/create-set" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                              <HiOutlineTemplate className="w-4 h-4 text-stone-400" /> Create Set
                             </Link>
                           </>
                         )}
@@ -384,6 +406,9 @@ export default function Navbar() {
                           <Link to="/wishlist" onClick={() => setMobileOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium"
                           ><HiOutlineHeart className="w-5 h-5" /> Wishlist</Link>
+                          <Link to="/create-set" onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium"
+                          ><HiOutlineTemplate className="w-5 h-5" /> Create Set</Link>
                         </>
                       )}
                     </>

@@ -4,7 +4,7 @@ import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from 'react-ic
 import { FaTwitter, FaInstagram, FaFacebook, FaLinkedin } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useCategoryStore } from '../../store';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,9 +40,7 @@ export default function Footer() {
   const isSeller       = userData?.role === 'seller' || userData?.role === 'store_owner';
   const isAdmin        = userData?.role === 'admin';
   const isBuyer        = userData?.role === 'buyer';
-  const { categories, fetchCategories } = useCategoryStore();
-
-  useEffect(() => { fetchCategories(); }, []);
+  const { categories } = useCategoryStore();
 
   const shopLinks = useMemo(() => [
     { label: 'All Products', to: '/products' },

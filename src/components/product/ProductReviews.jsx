@@ -45,7 +45,7 @@ function formatDate(dateVal) {
 
 export default function ProductReviews({ product }) {
   const productId = product?.id;
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, isStoreOwner } = useAuth();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userReview, setUserReview] = useState(null);
@@ -72,8 +72,8 @@ export default function ProductReviews({ product }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuReviewId]);
 
-  const isSellerOwner = currentUser &&
-    (userData?.role === 'seller' && product?.sellerEmail === currentUser.email);
+  const isSellerOwner = currentUser && isStoreOwner &&
+    product?.sellerEmail === currentUser.email;
 
   useEffect(() => {
     if (!productId) return;

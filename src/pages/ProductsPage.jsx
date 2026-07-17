@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -28,7 +28,6 @@ const dateFilters = [
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [selectedCat, setSelectedCat] = useState(searchParams.get('cat') || '');
@@ -39,13 +38,9 @@ export default function ProductsPage() {
   const [sort, setSort] = useState('newest');
 
   const products = useProductStore(s => s.products);
+  const productsLoading = useProductStore(s => s.loading);
   const { categories: categoryStore } = useCategoryStore();
   const { items: recentItems, clearAll: clearRecent } = useRecentlyViewed();
-
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
 
   const availableCategories = useMemo(() => {
     const catSlugs = new Set(products.map(p => p.category).filter(Boolean));
@@ -283,7 +278,7 @@ export default function ProductsPage() {
         </AnimatePresence>
 
         {/* Products Grid */}
-        {loading ? (
+        {productsLoading && products.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {Array.from({ length: 8 }).map((_, i) => <ProductSkeleton key={i} />)}
           </div>

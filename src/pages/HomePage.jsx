@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { HiArrowRight, HiStar, HiOutlineTruck, HiOutlineShieldCheck, HiOutlineRefresh, HiOutlineSupport } from 'react-icons/hi';
@@ -34,19 +33,19 @@ const perks = [
 ];
 
 export default function HomePage() {
-  const [loading, setLoading] = useState(true);
   const products = useProductStore(s => s.products);
-  const featured = [...products].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 5);
+  const productsLoading = useProductStore(s => s.loading);
+  const parseDate = (d) => {
+    if (!d) return 0;
+    if (d?.toDate) return d.toDate().getTime();
+    return new Date(d).getTime() || 0;
+  };
+  const featured = [...products].sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt)).slice(0, 5);
   const navigate = useNavigate();
 
   const { scrollY } = useScroll();
   const heroParallaxY = useTransform(scrollY, [0, 500], [0, 120]);
   const heroOpacity = useTransform(scrollY, [0, 400], [1, 0.6]);
-
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 900);
-    return () => clearTimeout(t);
-  }, []);
 
   const productCount = products.length || 0;
   const avgRating = products.length
@@ -185,7 +184,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Featured Products Section ── */}
+      {/* ── Latest Products Section ── */}
       <section className="py-20 bg-stone-100/50 dark:bg-stone-800/30 relative overflow-hidden">
         <div className="absolute inset-0 bg-mesh pointer-events-none" />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -197,9 +196,9 @@ export default function HomePage() {
             className="flex items-end justify-between mb-12"
           >
             <div>
-              <motion.span variants={fadeUpSpring} className="text-orange-500 font-semibold text-sm uppercase tracking-[0.15em]">Featured</motion.span>
-              <motion.h2 variants={fadeUpSpring} className="font-display text-4xl font-bold text-stone-900 dark:text-stone-100 mt-3">Featured Products</motion.h2>
-              <motion.p variants={fadeUpSpring} className="text-stone-500 dark:text-stone-400 mt-2">Handpicked favorites just for you</motion.p>
+              <motion.span variants={fadeUpSpring} className="text-orange-500 font-semibold text-sm uppercase tracking-[0.15em]">Latest</motion.span>
+              <motion.h2 variants={fadeUpSpring} className="font-display text-4xl font-bold text-stone-900 dark:text-stone-100 mt-3">Latest Products</motion.h2>
+              <motion.p variants={fadeUpSpring} className="text-stone-500 dark:text-stone-400 mt-2">Newest arrivals you don't want to miss</motion.p>
             </div>
             <motion.div variants={fadeUpSpring}>
               <Link to="/products" className="btn-ghost hidden sm:flex text-sm">
@@ -208,28 +207,31 @@ export default function HomePage() {
             </motion.div>
           </motion.div>
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-30px' }}
-            variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-          >
-            {loading
-              ? Array.from({ length: 8 }).map((_, i) => <ProductSkeleton key={i} />)
-              : featured.map((product, i) => (
-                  <motion.div
-                    key={product.id}
-                    variants={{
-                      hidden: { opacity: 0, y: 24 },
-                      visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
-                    }}
-                  >
-                    <ProductCard product={product} index={i} />
-                  </motion.div>
-                ))
-            }
-          </motion.div>
+          {productsLoading && products.length === 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)}
+            </div>
+          ) : (
+            <motion.div
+              key={featured.map(p => p.id).join(',')}
+              initial="hidden"
+              animate="visible"
+              variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              {featured.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 24 },
+                    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
+                  }}
+                >
+                  <ProductCard product={product} index={i} />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
 
           <div className="text-center mt-10 sm:hidden">
             <Link to="/products" className="btn-secondary">View All Products</Link>

@@ -1,36 +1,19 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, memo } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   HiOutlineHeart, HiHeart,
   HiOutlineShoppingCart, HiShoppingCart,
   HiStar, HiOutlineEye,
 } from 'react-icons/hi';
-import { useCartStore, useWishlistStore, useProductStore } from '../../store';
+import { useCartStore, useWishlistStore } from '../../store';
 import { useAuth } from '../../hooks/useAuth';
-import { getReviewsByProduct } from '../../services/reviewService';
 import QuickViewModal from './QuickViewModal';
 import toast from 'react-hot-toast';
 
 const ProductCard = memo(function ProductCard({ product, index = 0 }) {
   const [showQuickView, setShowQuickView] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(true);
-  const [reviewStats, setReviewStats] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const allReviews = await getReviewsByProduct(product.id);
-        if (cancelled) return;
-        const total = allReviews.length;
-        const avg = total > 0 ? allReviews.reduce((s, r) => s + r.rating, 0) / total : 0;
-        setReviewStats({ rating: +avg.toFixed(1), reviews: total });
-        useProductStore.getState().updateProduct(product.id, { rating: +avg.toFixed(1), reviews: total });
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [product.id]);
+  const [imgReady, setImgReady] = useState(false);
 
   const { addItem, isInCart }        = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
@@ -39,8 +22,6 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
   const isSeller   = userData?.role === 'seller';
   const inCart     = isInCart(product.id);
   const wishlisted = isWishlisted(product.id);
-
-  const hasHoverImage = !!product.hoverImage;
 
   const handleCartToggle = (e) => {
     e.preventDefault();
@@ -100,27 +81,18 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
             className="card overflow-hidden hover:shadow-xl hover:shadow-stone-200/60 dark:hover:shadow-stone-900/60 transition-shadow duration-300"
           >
             {/* Image */}
-            <div
-              className="relative overflow-hidden bg-stone-100 dark:bg-stone-800 aspect-square"
-              onMouseEnter={() => hasHoverImage && setImgLoaded(false)}
-              onMouseLeave={() => setImgLoaded(true)}
-            >
-              <AnimatePresence mode="wait">
-                <motion.img
-                  key={imgLoaded ? 'main' : 'hover'}
-                  src={imgLoaded
-                    ? (product.image || 'https://placehold.co/400x400?text=No+Image')
-                    : product.hoverImage
-                  }
-                  alt={product.name}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, scale: 1.08 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </AnimatePresence>
+            <div className="relative overflow-hidden bg-stone-100 dark:bg-stone-800 aspect-square">
+              {!imgReady && (
+                <div className="absolute inset-0 skeleton" />
+              )}
+              <img
+                src={product.image || 'https://placehold.co/400x400?text=No+Image'}
+                alt={product.name}
+                onLoad={() => setImgReady(true)}
+                className="w-full h-full object-cover transition-opacity duration-300"
+                style={{ opacity: imgReady ? 1 : 0 }}
+                loading="lazy"
+              />
 
               {/* Badges */}
               <div className="absolute top-3 left-3 flex flex-col gap-1.5">
@@ -243,13 +215,13 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
                     transition={{ delay: index * 0.04 + i * 0.03 }}
                   >
                     <HiStar className={`w-3.5 h-3.5 ${
-                      i < Math.floor(reviewStats?.rating ?? product.rating) ? 'text-amber-400' : 'text-stone-200 dark:text-stone-700'
+                      i < Math.floor(product.rating || 0) ? 'text-amber-400' : 'text-stone-200 dark:text-stone-700'
                     }`} />
                   </motion.div>
                 ))}
               </div>
               <span className="text-xs text-stone-500 dark:text-stone-400">
-                {reviewStats?.rating ?? product.rating} ({(reviewStats?.reviews ?? product.reviews ?? 0).toLocaleString()})
+                {product.rating || 0} ({(product.reviews || 0).toLocaleString()})
               </span>
             </div>
 

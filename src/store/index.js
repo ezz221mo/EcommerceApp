@@ -269,6 +269,8 @@ export const useOrderStore = create((set, get) => ({
       total, paymentMethod, couponCode, estimatedDelivery,
     });
     set(state => ({ orders: [created, ...state.orders] }));
+    // Refresh product stock after order placement
+    useProductStore.getState().fetchProducts();
     return created;
   },
 
@@ -294,6 +296,10 @@ export const useOrderStore = create((set, get) => ({
         o.id === orderId ? { ...o, ...updates } : o
       ),
     }));
+    // Refresh product stock after status changes that affect inventory
+    if (updates.orderStatus && ['Cancelled', 'Delivered'].includes(updates.orderStatus)) {
+      useProductStore.getState().fetchProducts();
+    }
   },
 
   getOrdersByBuyer: (email) =>
@@ -316,13 +322,15 @@ export const useOrderStore = create((set, get) => ({
 export const useCategoryStore = create((set, get) => ({
   categories: [],
   loading: false,
+  loaded: false,
 
-  fetchCategories: async () => {
+  fetchCategories: async (force) => {
+    if (!force && get().loaded) return;
     set({ loading: true });
     try {
       const { getAllCategories } = await import('../services/categoryService');
       const categories = await getAllCategories();
-      set({ categories, loading: false });
+      set({ categories, loading: false, loaded: true });
     } catch {
       set({ loading: false });
     }
@@ -364,7 +372,7 @@ export const useProductStore = create((set, get) => ({
       image: (data.images?.[0]) || data.image || '',
       images: data.images?.filter(Boolean) || (data.image ? [data.image] : []),
       description: data.description || '',
-      badge: 'New',
+      badge: data.badge || 'New',
       rating: data.rating ?? 0,
       reviews: data.reviews ?? 0,
       inStock: data.inStock ?? true,
@@ -372,6 +380,10 @@ export const useProductStore = create((set, get) => ({
       features: data.features || [],
       tags: data.tags || [],
       stock: data.stock ?? null,
+      sellerEmail: data.sellerEmail || '',
+      shipping: data.shipping || null,
+      sizes: data.sizes || [],
+      colors: data.colors || [],
     };
     const created = await createProduct(productData);
     set(state => ({ products: [created, ...state.products] }));
