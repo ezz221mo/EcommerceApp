@@ -1,8 +1,8 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
-export default function ProtectedRoute({ children, requireStoreOwner = false, excludeStoreOwner = false }) {
-  const { currentUser, isStoreOwner, loading } = useAuth();
+export default function ProtectedRoute({ children, requireStoreOwner = false, excludeStoreOwner = false, requireDelivery = false }) {
+  const { currentUser, isStoreOwner, isDelivery, loading } = useAuth();
 
   if (loading) {
     return (
@@ -22,12 +22,20 @@ export default function ProtectedRoute({ children, requireStoreOwner = false, ex
     return <Navigate to="/login" replace />;
   }
 
+  if (requireDelivery && !isDelivery) {
+    return <Navigate to="/" replace />;
+  }
+
   if (requireStoreOwner && !isStoreOwner) {
     return <Navigate to="/profile" replace />;
   }
 
   if (excludeStoreOwner && isStoreOwner) {
     return <Navigate to="/dashboard/seller" replace />;
+  }
+
+  if (isDelivery && !requireDelivery) {
+    return <Navigate to="/dashboard/delivery" replace />;
   }
 
   return children;

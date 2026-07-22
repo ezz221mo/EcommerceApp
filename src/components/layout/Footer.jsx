@@ -40,6 +40,7 @@ export default function Footer() {
   const isSeller       = userData?.role === 'seller' || userData?.role === 'store_owner';
   const isAdmin        = userData?.role === 'admin';
   const isBuyer        = userData?.role === 'buyer';
+  const isDelivery     = userData?.role === 'delivery';
   const { categories } = useCategoryStore();
 
   const shopLinks = useMemo(() => [
@@ -56,6 +57,7 @@ export default function Footer() {
   ];
 
   const supportLinks = [
+    { label: 'Customer Support', to: '/customer-support' },
     { label: 'Shopping Cart', to: '/cart' },
     ...(!isSeller
       ? [{ label: 'My Orders', to: '/orders/my-orders' }]
@@ -77,8 +79,44 @@ export default function Footer() {
   const footerSections = [
     { title: 'Shop',    links: shopLinks    },
     { title: 'Company', links: companyLinks },
-    ...(!isAdmin ? [{ title: 'Support', links: supportLinks }] : []),
+    ...(!isAdmin && !isDelivery ? [{ title: 'Support', links: supportLinks }] : []),
   ];
+
+  // Delivery users see a minimal footer with branding only
+  if (isDelivery) {
+    return (
+      <motion.footer
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        className="bg-stone-900 dark:bg-stone-950 text-stone-300 border-t border-stone-800"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-teal-500 rounded-lg flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-sm">L</span>
+              </div>
+              <span className="font-display font-bold text-xl text-white">
+                Luxe<span className="text-orange-400">Shop</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {[FaTwitter, FaInstagram, FaFacebook, FaLinkedin].map((Icon, i) => (
+                <a key={i} href="#" aria-label="Social link"
+                  className="w-9 h-9 rounded-xl bg-stone-800 hover:bg-orange-600 flex items-center justify-center transition-colors">
+                  <Icon className="w-4 h-4" />
+                </a>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-stone-800 mt-6 pt-6 text-center text-sm text-stone-500">
+            &copy; {new Date().getFullYear()} LuxeShop. All rights reserved.
+          </div>
+        </div>
+      </motion.footer>
+    );
+  }
 
   const socialIcons = [FaTwitter, FaInstagram, FaFacebook, FaLinkedin];
 

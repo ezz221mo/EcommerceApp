@@ -16,4 +16,9 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
+// Secondary app instance for admin operations (creating delivery users)
+// This prevents createUserWithEmailAndPassword from hijacking the main auth session
+const adminApp = initializeApp(firebaseConfig, 'admin');
+export const adminAuth = getAuth(adminApp);
+
 export default app;

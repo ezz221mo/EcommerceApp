@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlinePlus, HiOutlineViewGrid, HiOutlineShoppingBag,
   HiOutlineChartBar, HiOutlineCurrencyDollar,
-  HiOutlineTrash, HiOutlineEye, HiOutlineX, HiOutlinePhotograph,
+  HiOutlineTrash, HiOutlineEye, HiOutlineEyeOff, HiOutlineX, HiOutlinePhotograph,
   HiOutlineUpload, HiOutlineTag, HiOutlinePencil, HiOutlineCollection,
-  HiOutlineBookmarkAlt, HiOutlineChevronDown,
+  HiOutlineBookmarkAlt, HiOutlineChevronDown, HiOutlineTruck,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useProductStore, useOrderStore, useCategoryStore } from '../store';
@@ -21,8 +21,14 @@ import {
   updateCategory,
   deleteCategory,
 } from '../services/categoryService';
+import {
+  createDeliveryAccount,
+  updateDeliveryAccount,
+  deleteDeliveryAccount,
+  getAllDeliveryAccounts,
+} from '../services/deliveryService';
 import toast from 'react-hot-toast';
-
+import { compressAllImages } from '../utils/imageCompress';
 // ─── Add Product Modal (with multi-image + dynamic categories) ───────────────
 function AddProductModal({ onClose }) {
   const addProduct = useProductStore(s => s.addProduct);
@@ -43,10 +49,18 @@ function AddProductModal({ onClose }) {
 
   useEffect(() => { fetchCategories(); }, []);
 
+  // Cleanup Object URLs when the modal unmounts
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(url => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
+
   const selectedCatObj = allCategories.find(c => c.slug === form.category);
   const subcategories = selectedCatObj?.subcategories || [];
 
-  // ── Convert selected files → base64 data URLs ────────────────────────────
   const handleImagesChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -58,19 +72,18 @@ function AddProductModal({ onClose }) {
     });
     if (valid.length === 0) return;
 
-    Promise.all(valid.map(file => new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.readAsDataURL(file);
-    }))).then(results => {
-      setImageFiles(prev => [...prev, ...valid]);
-      setImagePreviews(prev => [...prev, ...results]);
-    });
+    const newPreviews = valid.map(file => URL.createObjectURL(file));
+    setImageFiles(prev => [...prev, ...valid]);
+    setImagePreviews(prev => [...prev, ...newPreviews]);
   };
 
   const handleRemoveImage = (idx) => {
     setImageFiles(prev => prev.filter((_, i) => i !== idx));
-    setImagePreviews(prev => prev.filter((_, i) => i !== idx));
+    setImagePreviews(prev => {
+      const url = prev[idx];
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -79,33 +92,35 @@ function AddProductModal({ onClose }) {
       toast.error('Please fill Name and Price', { style: { borderRadius: '12px' } });
       return;
     }
-    if (imagePreviews.length === 0) {
+    if (imageFiles.length === 0) {
       toast.error('Please upload at least one product image', { style: { borderRadius: '12px' } });
       return;
     }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-
-    await addProduct({
-      ...form,
-      image:       imagePreviews[0] || '',
-      images:      imagePreviews,
-      sellerEmail: userData?.email,
-      features: form.features
-        ? form.features.split(',').map(f => f.trim()).filter(Boolean)
-        : [],
-      shipping: {
-        originGovernorate: form.originGovernorate,
-        sameGovernorateDelivery: form.sameGovernorateDelivery,
-        otherGovernoratesDelivery: form.otherGovernoratesDelivery,
-      },
-    });
-
-    toast.success('Product added successfully!', {
-      style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
-    });
+    try {
+      const base64Images = await compressAllImages(imageFiles);
+      await addProduct({
+        ...form,
+        image: base64Images[0] || '',
+        images: base64Images,
+        sellerEmail: userData?.email,
+        features: form.features
+          ? form.features.split(',').map(f => f.trim()).filter(Boolean)
+          : [],
+        shipping: {
+          originGovernorate: form.originGovernorate,
+          sameGovernorateDelivery: form.sameGovernorateDelivery,
+          otherGovernoratesDelivery: form.otherGovernoratesDelivery,
+        },
+      });
+      toast.success('Product added successfully!', {
+        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
+      });
+      onClose();
+    } catch (err) {
+      toast.error(err.message || 'Failed to create product');
+    }
     setLoading(false);
-    onClose();
   };
 
   return (
@@ -630,6 +645,103 @@ export default function SellerDashboardPage() {
 
   const fetchProducts = useProductStore(s => s.fetchProducts);
 
+  // ── Delivery State ─────────────────────────────────────────────────────────
+  const [deliveryAccounts, setDeliveryAccounts] = useState([]);
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliveryModal, setDeliveryModal] = useState(null);
+  const [deliveryForm, setDeliveryForm] = useState({
+    name: '', email: '', password: '', phone: '', zones: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+
+  const loadDeliveryAccounts = async () => {
+    setDeliveryLoading(true);
+    const data = await getAllDeliveryAccounts();
+    setDeliveryAccounts(data);
+    setDeliveryLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'delivery') return;
+    loadDeliveryAccounts();
+  }, [activeTab]);
+
+  const openDeliveryModal = (existing = null) => {
+    if (existing) {
+      setDeliveryForm({
+        name: existing.name || '',
+        email: existing.email || '',
+        password: '',
+        phone: existing.phone || '',
+        zones: (existing.zones || []).join(', '),
+      });
+      setDeliveryModal(existing);
+    } else {
+      setDeliveryForm({ name: '', email: '', password: '', phone: '', zones: '' });
+      setDeliveryModal('new');
+    }
+  };
+
+  const handleSaveDelivery = async (e) => {
+    e.preventDefault();
+    try {
+      const zones = deliveryForm.zones.split(',').map(z => z.trim()).filter(Boolean);
+      const phone = deliveryForm.phone.trim();
+      if (phone && !/^(0020|\+20|0)?1[0125]\d{8}$/.test(phone)) {
+        toast.error('Please enter a valid Egyptian phone number (e.g. 01012345678)');
+        return;
+      }
+      if (deliveryModal === 'new') {
+        await createDeliveryAccount({
+          name: deliveryForm.name.trim(),
+          email: deliveryForm.email.trim(),
+          password: deliveryForm.password,
+          phone: deliveryForm.phone.trim(),
+          zones,
+        });
+        toast.success('Delivery account created!');
+      } else if (deliveryModal?.id) {
+        await updateDeliveryAccount(deliveryModal.id, {
+          name: deliveryForm.name.trim(),
+          phone: deliveryForm.phone.trim(),
+          zones,
+          password: deliveryForm.password || undefined,
+        });
+        toast.success('Delivery account updated!');
+      }
+      setDeliveryModal(null);
+      loadDeliveryAccounts();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save delivery account');
+    }
+  };
+
+  const handleDeleteDelivery = async (account) => {
+    if (!window.confirm(`Delete delivery account "${account.name}"?`)) return;
+    try {
+      await deleteDeliveryAccount(account.uid || account.id);
+      toast.success('Delivery account deleted');
+      loadDeliveryAccounts();
+    } catch { toast.error('Failed to delete delivery account'); }
+  };
+
+  const handleToggleDeliveryStatus = async (account) => {
+    const newStatus = account.status === 'active' ? 'disabled' : 'active';
+    try {
+      await updateDeliveryAccount(account.uid || account.id, { status: newStatus });
+      toast.success(`Account ${newStatus === 'active' ? 'enabled' : 'disabled'}`);
+      loadDeliveryAccounts();
+    } catch { toast.error('Failed to update status'); }
+  };
+
+  // ── Delivery info helper ──
+  const deliveryZones = [
+    'Cairo', 'Alexandria', 'Giza', 'Shubra El-Kheima', 'Port Said', 'Suez',
+    'Luxor', 'Mansoura', 'El-Mahalla El-Kubra', 'Tanta', 'Asyut', 'Ismailia',
+    'Fayyum', 'Zagazig', 'Damietta', 'Aswan', 'Minya', 'Beni Suef',
+    'Qena', 'Sohag', 'Hurghada', '6th of October', 'Sheikh Zayed',
+  ];
+
   const handleDelete = async (id) => {
     await deleteProduct(id);
     toast.success('Product removed', {
@@ -698,29 +810,40 @@ export default function SellerDashboardPage() {
     { key: 'categories',  label: 'Categories',  icon: HiOutlineCollection  },
     { key: 'orders',      label: 'Orders',      icon: HiOutlineShoppingBag },
     { key: 'coupons',     label: 'Coupons',     icon: HiOutlineTag         },
+    { key: 'delivery',    label: 'Delivery',    icon: HiOutlineTruck       },
   ];
 
   const statusStyle = {
-    Pending:        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    Confirmed:      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    Preparing:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    Shipped:        'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
-    OutForDelivery: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-    Delivered:      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    Cancelled:      'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+    Pending:              'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    Processing:           'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
+    Confirmed:            'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    Preparing:            'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    Shipped:              'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+    OutForDelivery:       'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    Delivered:            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    Cancelled:            'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+    AssignedToDelivery:   'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+    DeliveryFailed:       'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+    CustomerNotAvailable: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    Returned:             'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400',
   };
 
   const nextOrderStatuses = {
-    Pending:        ['Confirmed', 'Cancelled'],
-    Confirmed:      ['Preparing', 'Cancelled'],
-    Preparing:      ['Shipped', 'Cancelled'],
-    Shipped:        ['OutForDelivery', 'Cancelled'],
-    OutForDelivery: ['Delivered', 'Cancelled'],
-    Delivered:      [],
-    Cancelled:      [],
+    Pending:              ['Confirmed', 'Cancelled'],
+    Processing:           ['Confirmed', 'Cancelled'],
+    Confirmed:            ['Preparing', 'Cancelled'],
+    Preparing:            ['Shipped', 'Cancelled'],
+    Shipped:              ['OutForDelivery', 'Cancelled'],
+    OutForDelivery:       ['Delivered', 'Cancelled'],
+    Delivered:            [],
+    Cancelled:            [],
+    AssignedToDelivery:   [],
+    DeliveryFailed:       [],
+    CustomerNotAvailable: [],
+    Returned:             [],
   };
 
-  // ── Helper: thumbnail for a product (base64 or URL) ─────────────────────
+  // ── Helper: thumbnail for a product ───────────────────────────────────────
   const ProductThumb = ({ product, size = 'sm' }) => {
     const dim = size === 'sm' ? 'w-10 h-10' : 'w-12 h-12';
     const iconDim = size === 'sm' ? 'w-5 h-5' : 'w-6 h-6';
@@ -1085,6 +1208,82 @@ export default function SellerDashboardPage() {
             </motion.div>
           )}
 
+          {/* ── DELIVERY TAB ── */}
+          {activeTab === 'delivery' && (
+            <motion.div
+              key="delivery"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
+            >
+              <div className="card overflow-hidden">
+                <div className="flex items-center justify-between p-6 border-b border-stone-100 dark:border-stone-800">
+                  <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100">
+                    Delivery Management ({deliveryAccounts.length})
+                  </h2>
+                  <button onClick={() => openDeliveryModal(null)} className="btn-primary py-2 px-4 text-sm">
+                    <HiOutlinePlus className="w-4 h-4" /> New Delivery Account
+                  </button>
+                </div>
+
+                {deliveryLoading ? (
+                  <div className="flex justify-center py-12">
+                    <svg className="animate-spin w-6 h-6 text-orange-500" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </div>
+                ) : deliveryAccounts.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <HiOutlineTruck className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+                    <p className="font-semibold text-stone-600 dark:text-stone-400 mb-1">No delivery accounts</p>
+                    <p className="text-stone-400 text-sm mb-4">Create delivery accounts to assign orders automatically.</p>
+                    <button onClick={() => openDeliveryModal(null)} className="btn-primary py-2.5 px-5 text-sm">
+                      <HiOutlinePlus className="w-4 h-4" /> Create Delivery Account
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-stone-100 dark:divide-stone-800">
+                    {deliveryAccounts.map(acc => (
+                      <div key={acc.uid || acc.id} className="flex items-center gap-4 p-4 hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors group">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                          <HiOutlineTruck className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-stone-900 dark:text-stone-100">{acc.name}</span>
+                            <span className={`badge text-xs ${acc.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
+                              {acc.status === 'active' ? 'Active' : 'Disabled'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-400 mt-0.5">
+                            {acc.email} · {acc.phone || 'No phone'}
+                            {acc.zones?.length > 0 && ` · Zones: ${acc.zones.join(', ')}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleToggleDeliveryStatus(acc)}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors"
+                            title={acc.status === 'active' ? 'Disable' : 'Enable'}
+                          >
+                            {acc.status === 'active' ? <HiOutlineX className="w-4 h-4" /> : <HiOutlineCheck className="w-4 h-4" />}
+                          </button>
+                          <button onClick={() => openDeliveryModal(acc)}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-teal-500 hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors">
+                            <HiOutlinePencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteDelivery(acc)}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
+                            <HiOutlineTrash className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {/* ── ORDERS TAB ── */}
           {activeTab === 'orders' && (
             <motion.div
@@ -1167,6 +1366,35 @@ export default function SellerDashboardPage() {
                             )}
                           </div>
                         </div>
+
+                        {/* Delivery Info */}
+                        {order.delivery?.assignedTo && (
+                          <div className="grid sm:grid-cols-2 gap-3 mb-4 text-sm">
+                            <div className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                              <p className="text-xs font-semibold text-stone-400 mb-1 uppercase tracking-wider">
+                                <HiOutlineTruck className="w-3.5 h-3.5 inline mr-1" />Delivery
+                              </p>
+                              <p className="text-stone-900 dark:text-stone-100 font-medium flex items-center gap-1">
+                                <HiOutlineTruck className="w-4 h-4 text-orange-500" />
+                                {order.delivery.assignedToName || 'Assigned'}
+                              </p>
+                              {order.delivery.deliveryStatus && (
+                                <span className={`badge text-xs mt-1 ${statusStyle[order.orderStatus] || ''}`}>
+                                  {order.delivery.deliveryStatus === 'out_for_delivery' ? 'Out For Delivery' : order.delivery.deliveryStatus === 'picked_up' ? 'Picked Up' : order.delivery.deliveryStatus}
+                                </span>
+                              )}
+                            </div>
+                            <div className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                              <p className="text-xs font-semibold text-stone-400 mb-1 uppercase tracking-wider">Last Update</p>
+                              <p className="text-stone-900 dark:text-stone-100 font-medium">
+                                {order.delivery.updatedAt ? new Date(order.delivery.updatedAt).toLocaleString() : 'N/A'}
+                              </p>
+                              {order.delivery?.returnReason && (
+                                <p className="text-rose-500 text-xs mt-1">Return: {order.delivery.returnReason}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Payment & Order Status */}
                         <div className="flex items-center gap-4 mb-4 text-sm">
@@ -1324,6 +1552,107 @@ export default function SellerDashboardPage() {
                   <button type="button" onClick={() => setCouponModal(null)} className="btn-secondary flex-1">Cancel</button>
                   <button type="submit" className="btn-primary flex-1 justify-center">
                     {couponModal === 'new' ? 'Create Coupon' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delivery Account Modal */}
+      <AnimatePresence>
+        {deliveryModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center px-4"
+            onClick={() => setDeliveryModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="card w-full max-w-lg p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-display text-lg font-bold text-stone-900 dark:text-stone-100">
+                  {deliveryModal === 'new' ? 'Create Delivery Account' : 'Edit Delivery Account'}
+                </h3>
+                <button onClick={() => setDeliveryModal(null)} className="btn-ghost p-2 rounded-xl">
+                  <HiOutlineX className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleSaveDelivery} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                    Full Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input type="text" value={deliveryForm.name}
+                    onChange={e => setDeliveryForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="John Doe" className="input-field" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                    Email <span className="text-rose-500">*</span>
+                  </label>
+                  <input type="email" value={deliveryForm.email}
+                    onChange={e => setDeliveryForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="delivery@example.com" className="input-field" required
+                    readOnly={deliveryModal !== 'new'} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                    Password {deliveryModal === 'new' ? <span className="text-rose-500">*</span> : <span className="text-stone-400">(leave blank to keep)</span>}
+                  </label>
+                  <div className="relative">
+                    <input type={showPassword ? 'text' : 'password'} value={deliveryForm.password}
+                      onChange={e => setDeliveryForm(f => ({ ...f, password: e.target.value }))}
+                      placeholder={deliveryModal === 'new' ? 'Min 6 characters' : 'Leave blank to keep current'}
+                      className="input-field pr-10" required={deliveryModal === 'new'} minLength={6} />
+                    <button type="button" onClick={() => setShowPassword(s => !s)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
+                      {showPassword ? <HiOutlineEyeOff className="w-5 h-5" /> : <HiOutlineEye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">Phone Number</label>
+                  <input type="tel" value={deliveryForm.phone}
+                    onChange={e => setDeliveryForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="01012345678" className="input-field" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                    Delivery Zones (Governorates) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {deliveryZones.map(zone => {
+                      const zones = deliveryForm.zones.split(',').map(z => z.trim()).filter(Boolean);
+                      const selected = zones.includes(zone);
+                      return (
+                        <button key={zone} type="button" onClick={() => {
+                          const current = deliveryForm.zones.split(',').map(z => z.trim()).filter(Boolean);
+                          const updated = selected ? current.filter(z => z !== zone) : [...current, zone];
+                          setDeliveryForm(f => ({ ...f, zones: updated.join(', ') }));
+                        }}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+                            selected ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 ring-1 ring-orange-500' : 'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700'
+                          }`}>
+                          {zone}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input type="text" value={deliveryForm.zones}
+                    onChange={e => setDeliveryForm(f => ({ ...f, zones: e.target.value }))}
+                    placeholder="Or type zones separated by commas: Cairo, Giza, Alexandria"
+                    className="input-field text-sm" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setDeliveryModal(null)} className="btn-secondary flex-1">Cancel</button>
+                  <button type="submit" className="btn-primary flex-1 justify-center">
+                    {deliveryModal === 'new' ? 'Create Account' : 'Save Changes'}
                   </button>
                 </div>
               </form>

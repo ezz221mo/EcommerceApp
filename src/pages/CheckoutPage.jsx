@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineClipboardCheck, HiOutlineArrowLeft, HiOutlineLockClosed, HiOutlineTruck, HiOutlineCreditCard, HiOutlineCheckCircle, HiOutlineShieldCheck, HiOutlineTag, HiOutlineX, HiOutlinePencil, HiOutlineCheck } from 'react-icons/hi';
 import { useCartStore, useOrderStore } from '../store';
 import { useAuth } from '../hooks/useAuth';
+import { auth } from '../firebase/firebase';
 import { validateCoupon, incrementCouponUsage } from '../services/couponService';
 import toast from 'react-hot-toast';
 
@@ -246,34 +247,59 @@ export default function CheckoutPage() {
     const cardType = detectCardType(form.cardNumber);
     const cardLast4 = form.cardNumber.replace(/\s/g, '').slice(-4);
 
+    // ── Log auth state ───────────────────────────────────────────────
+    console.log('=== CHECKOUT: handleConfirmOrder start ===');
+    console.log('CHECKOUT: auth.currentUser:', auth.currentUser);
+    console.log('CHECKOUT: auth.currentUser?.uid:', auth.currentUser?.uid);
+    console.log('CHECKOUT: userData:', userData);
+    console.log('CHECKOUT: userData.uid:', userData?.uid, 'userData.id:', userData?.id);
+    console.log('CHECKOUT: coupon:', coupon);
+
+    const orderPayload = {
+      userId: userData.uid || userData.id,
+      customerInfo: {
+        uid: userData.uid || userData.id,
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        city: form.city,
+        zip: form.zip,
+        governorate: form.governorate,
+      },
+      items: orderItems,
+      subtotal,
+      shipping,
+      tax,
+      discount,
+      total,
+      paymentMethod: { type: cardType || 'Unknown', last4: cardLast4 },
+      couponCode: coupon?.code || null,
+      estimatedDelivery: estimatedDelivery || '',
+    };
+    console.log('CHECKOUT: orderPayload:', orderPayload);
+
     try {
-      await placeOrder({
-        userId: userData.uid || userData.id,
-        customerInfo: {
-          fullName: form.fullName,
-          email: form.email,
-          phone: form.phone,
-          address: form.address,
-          city: form.city,
-          zip: form.zip,
-          governorate: form.governorate,
-        },
-        items: orderItems,
-        subtotal,
-        shipping,
-        tax,
-        discount,
-        total,
-        paymentMethod: { type: cardType || 'Unknown', last4: cardLast4 },
-        couponCode: coupon?.code || null,
-        estimatedDelivery: estimatedDelivery || '',
-      });
+      console.log('CHECKOUT: Calling placeOrder...');
+      const result = await placeOrder(orderPayload);
+      console.log('CHECKOUT: placeOrder succeeded, result:', result);
 
       if (coupon?.code) {
-        await incrementCouponUsage(coupon.code).catch(() => {});
+        console.log('CHECKOUT: Incrementing coupon usage for:', coupon.code);
+        try {
+          await incrementCouponUsage(coupon.code);
+          console.log('CHECKOUT: Coupon usage incremented successfully');
+        } catch (couponErr) {
+          console.error('CHECKOUT: Coupon increment FAILED:', couponErr);
+          console.error('CHECKOUT: Coupon error code:', couponErr?.code);
+          console.error('CHECKOUT: Coupon error message:', couponErr?.message);
+        }
       }
 
+      console.log('CHECKOUT: Clearing cart...');
+      console.log('CHECKOUT: Auth state before clearCart — currentUser:', auth.currentUser?.uid);
       clearCart();
+      console.log('CHECKOUT: clearCart() called');
       setLoading(false);
 
       toast.success('Your order has been placed successfully. It will arrive soon!', {
@@ -282,9 +308,18 @@ export default function CheckoutPage() {
         style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
       });
 
+      console.log('CHECKOUT: Navigating to /orders/my-orders');
       navigate('/orders/my-orders');
     } catch (err) {
       setLoading(false);
+      console.error('=== CHECKOUT ERROR ===');
+      console.error('CHECKOUT: Full error object:', err);
+      console.error('CHECKOUT: Error code:', err?.code);
+      console.error('CHECKOUT: Error message:', err?.message);
+      console.error('CHECKOUT: Error name:', err?.name);
+      if (err?.stack) console.error('CHECKOUT: Error stack:', err.stack);
+      console.error('=== END CHECKOUT ERROR ===');
+
       toast.error(err?.message || 'Failed to place order. Please try again.', {
         style: { borderRadius: '12px' },
       });
@@ -542,7 +577,7 @@ export default function CheckoutPage() {
                   whileTap={!loading ? { scale: 0.99 } : {}}
                   className="btn-primary-glow w-full py-4 text-base justify-center"
                 >
-                  <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review ظ¤ ${total.toFixed(2)}</>
+                  <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review · ${total.toFixed(2)}</>
                 </motion.button>
               </div>
             </div>
@@ -649,7 +684,7 @@ export default function CheckoutPage() {
                     whileTap={!loading ? { scale: 0.98 } : {}}
                     className="btn-primary-glow w-full py-4 text-base justify-center"
                   >
-                    <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review ظ¤ ${total.toFixed(2)}</>
+                    <><HiOutlineLockClosed className="w-5 h-5" /> Continue to Review · ${total.toFixed(2)}</>
                   </motion.button>
 
                   <div className="flex items-center justify-center gap-1.5 text-xs text-stone-400">
@@ -811,9 +846,9 @@ export default function CheckoutPage() {
                         className="btn-primary-glow w-full py-4 text-base justify-center"
                       >
                         {loading ? (
-                          <><svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Processingظخ</>
+                          <><svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Processing...</>
                         ) : (
-                          <><HiOutlineCheck className="w-5 h-5" /> Confirm Order ظ¤ ${total.toFixed(2)}</>
+                          <><HiOutlineCheck className="w-5 h-5" /> Confirm Order · ${total.toFixed(2)}</>
                         )}
                       </motion.button>
 

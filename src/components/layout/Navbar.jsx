@@ -22,7 +22,7 @@ export default function Navbar() {
   const cartItems = useCartStore(s => s.items);
   const wishlistItems = useWishlistStore(s => s.items);
   const { isDark, toggleTheme } = useThemeStore();
-  const { currentUser, userData, isStoreOwner, logout: authLogout } = useAuth();
+  const { currentUser, userData, isStoreOwner, isDelivery, logout: authLogout } = useAuth();
   const { categories: allCategories, fetchCategories } = useCategoryStore();
   const products = useProductStore(s => s.products);
   const isAuthenticated = !!currentUser;
@@ -94,6 +94,37 @@ export default function Navbar() {
         ? darkText ? 'text-orange-600' : 'text-white'
         : darkText ? 'text-stone-600 dark:text-stone-400' : 'text-white/80'
     }`;
+
+  if (isDelivery) {
+    return (
+      <motion.nav
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-stone-950/80 backdrop-blur-xl shadow-lg border-b border-stone-100/50 dark:border-stone-800/50"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-teal-500 rounded-lg flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-sm">L</span>
+              </div>
+              <span className="font-display font-bold text-xl text-stone-900 dark:text-white">
+                Luxe<span className="text-orange-500">Shop</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-medium text-stone-400 hidden sm:block">Delivery Dashboard</span>
+              <button onClick={async () => { await authLogout(); navigate('/login', { replace: true }); }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
+                <HiOutlineLogout className="w-4 h-4" /> Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.nav>
+    );
+  }
 
   return (
     <>

@@ -5,7 +5,8 @@ import {
   HiOutlineUser, HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker,
   HiOutlineShoppingBag, HiOutlineHeart, HiOutlineLogout,
   HiOutlinePencil, HiOutlineClipboardList, HiOutlineLockClosed,
-  HiOutlineCheck, HiOutlineX, HiOutlineTruck,
+  HiOutlineCheck, HiOutlineX, HiOutlineTruck, HiOutlineClock,
+  HiOutlineExclamationCircle,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore, useWishlistStore, useOrderStore } from '../store';
@@ -44,7 +45,7 @@ export function ProfilePage() {
   };
 
   const cartTotal   = cartItems.reduce((s, i) => s + i.quantity, 0);
-  const myOrders    = getOrdersByBuyer(userData.email);
+  const myOrders    = getOrdersByBuyer(userData.uid || userData.id);
   const orderCount  = myOrders.length;
 
   return (
@@ -292,7 +293,17 @@ export function ProfilePage() {
 // ─────────────────────────────────────────────────────────────────────────────
 const ORDER_STATUS_FLOW = ['Pending', 'Confirmed', 'Preparing', 'Shipped', 'OutForDelivery', 'Delivered'];
 
-function OrderTimeline({ currentStatus }) {
+const deliveryStatusLabel = {
+  assigned: 'Assigned To Delivery',
+  picked_up: 'Picked Up',
+  out_for_delivery: 'Out For Delivery',
+  delivered: 'Delivered',
+  delivery_failed: 'Delivery Failed',
+  customer_not_available: 'Customer Not Available',
+  returned: 'Returned',
+};
+
+function OrderTimeline({ currentStatus, delivery }) {
   const status = currentStatus === 'Cancelled' ? null : currentStatus;
   const currentIdx = status ? ORDER_STATUS_FLOW.indexOf(status) : -1;
 
@@ -333,6 +344,36 @@ function OrderTimeline({ currentStatus }) {
   );
 }
 
+function DeliveryTimeline({ entries }) {
+  if (!entries || entries.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-stone-400 mb-2 uppercase tracking-wider">Delivery Timeline</p>
+      {entries.map((entry, i) => (
+        <div key={i} className="flex items-start gap-3">
+          <div className="flex flex-col items-center">
+            <div className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+              <HiOutlineClock className="w-3 h-3 text-orange-500" />
+            </div>
+            {i < entries.length - 1 && <div className="w-0.5 flex-1 bg-stone-200 dark:bg-stone-700" />}
+          </div>
+          <div className="pb-2">
+            <p className="text-xs font-medium text-stone-900 dark:text-stone-100">
+              {deliveryStatusLabel[entry.status] || entry.status}
+            </p>
+            <p className="text-xs text-stone-400">
+              {entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
+              {' · '}
+              {entry.timestamp ? new Date(entry.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+              {entry.note && !entry.note.includes(deliveryStatusLabel[entry.status]) ? ` · ${entry.note}` : ''}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ORDERS PAGE — buyer's real orders from useOrderStore
 // ─────────────────────────────────────────────────────────────────────────────
@@ -365,7 +406,7 @@ export function OrdersPage() {
     );
   }
 
-  const orders = getOrdersByBuyer(userData?.email);
+  const orders = getOrdersByBuyer(userData?.uid || userData?.id);
 
   const handleConfirmDelivery = async (orderId) => {
     try {
@@ -382,13 +423,18 @@ export function OrdersPage() {
   };
 
   const statusStyle = {
-    Pending:        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    Confirmed:      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    Preparing:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    Shipped:        'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
-    OutForDelivery: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-    Delivered:      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    Cancelled:      'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+    Pending:              'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    Processing:           'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
+    Confirmed:            'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    Preparing:            'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    Shipped:              'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+    OutForDelivery:       'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    Delivered:            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    Cancelled:            'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+    AssignedToDelivery:   'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+    DeliveryFailed:       'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+    CustomerNotAvailable: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    Returned:             'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400',
   };
 
   return (
@@ -520,11 +566,36 @@ export function OrdersPage() {
                   </div>
                 </div>
 
+                {/* Delivery Info */}
+                {order.delivery?.assignedTo && (
+                  <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-800">
+                    <div className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-stone-400 mb-1 uppercase tracking-wider">
+                        <HiOutlineTruck className="w-3.5 h-3.5 inline mr-1" />Delivery
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-stone-900 dark:text-stone-100">
+                          {order.delivery.assignedToName || 'Delivery Person'}
+                        </span>
+                        {order.delivery.deliveryStatus === 'delivered' && (
+                          <HiOutlineCheck className="w-4 h-4 text-green-500" />
+                        )}
+                      </div>
+                      {order.delivery.deliveryStatus === 'delivery_failed' && (
+                        <p className="text-xs text-rose-500 mt-1">Delivery attempt failed</p>
+                      )}
+                      {order.delivery.deliveryStatus === 'customer_not_available' && (
+                        <p className="text-xs text-amber-500 mt-1">Customer was not available</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Order Tracking Timeline */}
                 {orderStatus !== 'Cancelled' ? (
                   <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-800">
                     <p className="text-xs font-semibold text-stone-400 mb-3 uppercase tracking-wider">Order Progress</p>
-                    <OrderTimeline currentStatus={orderStatus} />
+                    <OrderTimeline currentStatus={orderStatus} delivery={order.delivery} />
                   </div>
                 ) : (
                   <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-800">
@@ -532,6 +603,13 @@ export function OrdersPage() {
                       <HiOutlineX className="w-4 h-4" />
                       Order Cancelled
                     </div>
+                  </div>
+                )}
+
+                {/* Delivery Timeline */}
+                {order.timeline && order.timeline.length > 0 && (
+                  <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-800">
+                    <DeliveryTimeline entries={order.timeline} />
                   </div>
                 )}
 

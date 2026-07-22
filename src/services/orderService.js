@@ -88,6 +88,7 @@ export const createOrder = async ({
   const orderPayload = {
     userId: sanitizeForFirestore(userId) || '',
     customerInfo: {
+      uid:         sanitizeForFirestore(customerInfo?.uid) || '',
       fullName:    sanitizeForFirestore(customerInfo?.fullName) || '',
       email:       sanitizeForFirestore(customerInfo?.email) || '',
       phone:       sanitizeForFirestore(customerInfo?.phone) || '',
@@ -124,28 +125,100 @@ export const createOrder = async ({
   const stockBefore = {};
   for (const item of mappedItems) {
     try {
+      console.log('[createOrder] Reading stock for product:', item.id);
       const snap = await getDoc(doc(db, 'products', item.id));
       if (snap.exists()) {
         const currentStock = parseInt(snap.data().stock);
         if (!isNaN(currentStock)) {
           stockBefore[item.id] = currentStock;
+          console.log('[createOrder] Product', item.id, 'current stock:', currentStock);
+        } else {
+          console.log('[createOrder] Product', item.id, 'has no numeric stock field, skipping');
         }
+      } else {
+        console.log('[createOrder] Product', item.id, 'not found, skipping');
       }
-    } catch { /* skip items without stock tracking */ }
+    } catch (stockErr) {
+      console.error('[createOrder] Failed to read stock for product:', item.id, stockErr);
+    }
   }
 
   // ── 5. Write to Firestore ──────────────────────────────────────────────
+  console.log('[createOrder] Creating order document...');
+  console.log('[createOrder] Order payload:', JSON.stringify({ ...orderPayload, createdAt: '[SERVER TIMESTAMP]', updatedAt: '[SERVER TIMESTAMP]' }));
   const docRef = await addDoc(collection(db, 'orders'), orderPayload);
+  console.log('[createOrder] Order created successfully, doc ID:', docRef.id);
 
   // ── 6. Reduce stock atomically for each item ────────────────────────────
   for (const item of mappedItems) {
     if (stockBefore[item.id] !== undefined) {
-      await adjustStockAtomic(item.id, -item.quantity);
+      console.log('[createOrder] Adjusting stock for item:', item.id, 'delta:', -item.quantity, 'stock before:', stockBefore[item.id]);
+      try {
+        await adjustStockAtomic(item.id, -item.quantity);
+        console.log('[createOrder] Stock adjusted for item:', item.id);
+      } catch (stockUpdateErr) {
+        console.error('[createOrder] Stock adjustment FAILED for item:', item.id, stockUpdateErr);
+        console.error('[createOrder] Stock update error code:', stockUpdateErr?.code);
+        console.error('[createOrder] Stock update error message:', stockUpdateErr?.message);
+        throw stockUpdateErr;
+      }
+    } else {
+      console.log('[createOrder] Skipping stock adjustment for item:', item.id, '(no stock tracking)');
     }
   }
 
-  // ── 7. Return clean result (no FieldValue sentinels) ────────────────────
+  // ── 7. Auto-assign delivery based on governorate ──────────────────────
+  const governorate = customerInfo?.governorate?.trim();
+  if (governorate) {
+    console.log('[createOrder] Attempting delivery auto-assignment for governorate:', governorate);
+    try {
+      const { assignDeliveryOrder } = await import('./deliveryService');
+      const assigned = await assignDeliveryOrder(docRef.id, governorate);
+      if (assigned) {
+        console.log('[createOrder] Delivery auto-assigned successfully to:', assigned.name);
+      } else {
+        console.log('[createOrder] No matching delivery for', governorate, '- setting to Processing');
+        try {
+          await updateDoc(doc(db, 'orders', docRef.id), {
+            orderStatus: 'Processing',
+            updatedAt: serverTimestamp(),
+          });
+          console.log('[createOrder] Order status set to Processing');
+        } catch (updateErr) {
+          console.error('[createOrder] Failed to set Processing status:', updateErr?.code, updateErr?.message, updateErr);
+        }
+      }
+    } catch (deliveryErr) {
+      console.error('[createOrder] Delivery auto-assignment threw:', deliveryErr?.code, deliveryErr?.message, deliveryErr);
+      try {
+        await updateDoc(doc(db, 'orders', docRef.id), {
+          orderStatus: 'Processing',
+          updatedAt: serverTimestamp(),
+        });
+      } catch { /* ignore */ }
+    }
+  } else {
+    console.log('[createOrder] No governorate in customerInfo, skipping delivery assignment');
+  }
+
+  // ── 8. Return clean result (no FieldValue sentinels) ────────────────────
   const now = new Date().toISOString();
+  // Re-read the order to get updated status (delivery assignment)
+  try {
+    const orderSnap = await getDoc(doc(db, 'orders', docRef.id));
+    if (orderSnap.exists()) {
+      const orderData = orderSnap.data();
+      return {
+        id: docRef.id,
+        ...orderPayload,
+        orderStatus: orderData.orderStatus || orderPayload.orderStatus,
+        delivery: orderData.delivery || null,
+        timeline: orderData.timeline || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+  } catch { /* fall through to default return */ }
   return {
     id: docRef.id,
     ...orderPayload,
@@ -156,26 +229,50 @@ export const createOrder = async ({
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 
-function mapDoc(doc) {
-  const data = doc.data();
+function mapTimestamps(data) {
+  if (!data.timeline) return data;
   return {
-    id: doc.id,
     ...data,
+    timeline: data.timeline.map(t => ({
+      ...t,
+      timestamp: t.timestamp?.toDate?.().toISOString() || t.timestamp || null,
+    })),
+  };
+}
+
+function mapDoc(docSnap) {
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...mapTimestamps(data),
     createdAt: data.createdAt?.toDate?.().toISOString() || data.createdAt || null,
     updatedAt: data.updatedAt?.toDate?.().toISOString() || data.updatedAt || null,
     orderStatus: data.orderStatus || data.status || 'Pending',
     paymentStatus: data.paymentStatus || 'Pending',
+    delivery: data.delivery || null,
+    timeline: data.timeline || null,
+    customerInfo: data.customerInfo || null,
+    items: data.items || [],
+    total: data.total || 0,
   };
 }
 
 export const getUserOrders = async (userId) => {
+  // No orderBy — avoids requiring a composite index in Firestore.
+  // Sorting is done client-side below.
   const q = query(
     collection(db, 'orders'),
-    where('userId', '==', userId),
-    fbOrderBy('createdAt', 'desc')
+    where('userId', '==', userId)
   );
   const snap = await getDocs(q);
-  return snap.docs.map(mapDoc);
+  const orders = snap.docs.map(mapDoc);
+  // Sort newest-first client-side using createdAt ISO string
+  orders.sort((a, b) => {
+    if (!a.createdAt) return 1;
+    if (!b.createdAt) return -1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+  return orders;
 };
 
 export const getAllOrders = async () => {
@@ -208,6 +305,22 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
   }
 
   await updateDoc(ref, { orderStatus, updatedAt: serverTimestamp() });
+
+  // Auto-assign delivery when order is confirmed
+  if (orderStatus === 'Confirmed') {
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const orderData = snap.data();
+        const governorate = orderData.customerInfo?.governorate;
+        if (governorate) {
+          const { assignDeliveryOrder } = await import('./deliveryService');
+          await assignDeliveryOrder(orderId, governorate);
+        }
+      }
+    } catch { /* auto-assignment is best-effort */ }
+  }
+
   return { id: orderId, orderStatus };
 };
 
@@ -220,5 +333,5 @@ export const updatePaymentStatus = async (orderId, paymentStatus) => {
 export const getOrder = async (orderId) => {
   const snap = await getDoc(doc(db, 'orders', orderId));
   if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() };
+  return mapDoc(snap);
 };

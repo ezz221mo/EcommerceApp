@@ -20,9 +20,11 @@ import AboutPage from './pages/AboutPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import SellerDashboardPage from './pages/SellerDashboardPage';
+import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
 import OutfitPage from './pages/OutfitPage';
 import CreateSetPage from './pages/CreateSetPage';
 import SetDetailPage from './pages/SetDetailPage';
+import ComplaintsPage from './pages/ComplaintsPage';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -52,6 +54,7 @@ function AppRoutes() {
         <Route path="/terms-and-conditions" element={<PageWrapper><TermsPage /></PageWrapper>} />
         <Route path="/privacy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
         <Route path="/privacy-policy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
+        <Route path="/customer-support" element={<PageWrapper><ComplaintsPage /></PageWrapper>} />
 
         <Route path="/outfit" element={<PageWrapper><OutfitPage /></PageWrapper>} />
         
@@ -76,6 +79,10 @@ function AppRoutes() {
 
         <Route path="/dashboard/seller" element={
           <ProtectedRoute requireStoreOwner={true}><PageWrapper><SellerDashboardPage /></PageWrapper></ProtectedRoute>
+        } />
+
+        <Route path="/dashboard/delivery" element={
+          <ProtectedRoute requireDelivery={true}><PageWrapper><DeliveryDashboardPage /></PageWrapper></ProtectedRoute>
         } />
 
         <Route path="/profile/edit" element={

@@ -1,16 +1,40 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// ── Per‑user cart persistence (sync, no persist middleware) ─────────────────
+// ── Per‑user cart persistence (Firestore + localStorage) ────────────────────
+import { auth } from '../firebase/firebase';
+import { getCart as fbGetCart, setCart as fbSetCart, clearCart as fbClearCart } from '../services/cartService';
+
 let _currentCartOwner = null;
 
-export function loadCart(uid) {
+function saveToLocalStorage(uid, items, coupon) {
+  try {
+    localStorage.setItem(`luxe-cart-${uid}`, JSON.stringify({ items, coupon }));
+  } catch (e) { /* quota exceeded etc. */ }
+}
+
+export async function loadCart(uid) {
   _currentCartOwner = uid;
+  console.log('[store] loadCart() uid:', uid, 'auth.uid:', auth.currentUser?.uid);
+  // Try Firestore first
+  try {
+    const remote = await fbGetCart(uid);
+    if (remote.items.length > 0) {
+      useCartStore.setState({ items: remote.items, coupon: remote.coupon });
+      saveToLocalStorage(uid, remote.items, remote.coupon);
+      console.log('[store] loadCart() loaded', remote.items.length, 'items from Firestore');
+      return;
+    }
+  } catch (e) {
+    console.warn('[store] loadCart() Firestore fallback to localStorage:', e?.message);
+  }
+  // Fallback to localStorage
   try {
     const saved = localStorage.getItem(`luxe-cart-${uid}`);
     if (saved) {
       const parsed = JSON.parse(saved);
       useCartStore.setState({ items: parsed.items || [], coupon: parsed.coupon || null });
+      console.log('[store] loadCart() loaded', parsed.items?.length, 'items from localStorage');
       return;
     }
   } catch (e) { /* ignore */ }
@@ -90,7 +114,17 @@ export const useCartStore = create(
       }));
     },
 
-    clearCart: () => set({ items: [], coupon: null }),
+    clearCart: () => {
+      set({ items: [], coupon: null });
+      const owner = _currentCartOwner;
+      const currentUid = auth.currentUser?.uid;
+      console.log('[store] clearCart() owner:', owner, 'auth.uid:', currentUid);
+      if (owner && currentUid && owner === currentUid) {
+        fbClearCart(owner).catch(() => {});
+      } else if (owner) {
+        console.warn('[store] clearCart() skipped — owner', owner, '!= auth.uid', currentUid);
+      }
+    },
 
     isInCart: (id) => get().items.some(i => i.id === id),
 
@@ -123,12 +157,17 @@ export const useCartStore = create(
   })
 );
 
-// Auto-save cart to localStorage on every change for the authenticated user
+// Auto-save cart to localStorage + Firestore on every change
 useCartStore.subscribe((state) => {
-  if (_currentCartOwner) {
-    try {
-      localStorage.setItem(`luxe-cart-${_currentCartOwner}`, JSON.stringify({ items: state.items, coupon: state.coupon }));
-    } catch (e) { /* quota exceeded etc. */ }
+  const owner = _currentCartOwner;
+  const currentUid = auth.currentUser?.uid;
+  if (owner) {
+    saveToLocalStorage(owner, state.items, state.coupon);
+    if (currentUid && owner === currentUid) {
+      fbSetCart(owner, state.items, state.coupon).catch(() => {});
+    } else {
+      console.log('[store] subscribe() skip Firestore — owner:', owner, 'auth.uid:', currentUid);
+    }
   }
 });
 
@@ -245,7 +284,8 @@ export const useOrderStore = create((set, get) => ({
     try {
       const orders = await fbGetUserOrders(userId);
       set({ orders, loading: false, loaded: true });
-    } catch {
+    } catch (err) {
+      console.error('[OrderStore] fetchUserOrders error:', err?.code, err?.message, err);
       set({ loading: false });
     }
   },
@@ -302,9 +342,9 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  getOrdersByBuyer: (email) =>
+  getOrdersByBuyer: (userId) =>
     get().orders.filter(o =>
-      (o.customerInfo?.email || '').toLowerCase() === email.toLowerCase()
+      o.userId === userId || o.customerInfo?.uid === userId
     ),
 
   getRevenue: () => {

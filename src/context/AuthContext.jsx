@@ -44,21 +44,32 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let latestUid = null;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      const thisUid = firebaseUser?.uid || null;
+      latestUid = thisUid;
       setCurrentUser(firebaseUser);
       if (firebaseUser) {
         loadCart(firebaseUser.uid);
         try {
           const data = await loadAndMigrateUser(firebaseUser.uid, firebaseUser.email);
-          setUserData(data);
+          if (latestUid === firebaseUser.uid) {
+            setUserData(data);
+            setLoading(false);
+          }
         } catch {
-          setUserData(null);
+          if (latestUid === firebaseUser.uid) {
+            setUserData(null);
+            setLoading(false);
+          }
         }
       } else {
         clearCartSession();
         setUserData(null);
+        if (latestUid === null) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     });
     return unsubscribe;
   }, []);
@@ -102,12 +113,14 @@ export function AuthProvider({ children }) {
   }, [currentUser]);
 
   const isStoreOwner = userData?.role === 'store_owner' || userData?.role === 'admin' || userData?.role === 'seller';
+  const isDelivery = userData?.role === 'delivery';
 
   const value = {
     currentUser,
     userData,
     role: userData?.role || null,
     isStoreOwner,
+    isDelivery,
     loading,
     login,
     register,

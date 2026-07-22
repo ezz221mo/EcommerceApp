@@ -102,6 +102,7 @@ export function LoginPage() {
   const getRoleDashboard = (data) => {
     if (!data) return '/';
     if (data.role === 'store_owner' || data.role === 'admin' || data.role === 'seller') return '/dashboard/seller';
+    if (data.role === 'delivery') return '/dashboard/delivery';
     return '/profile';
   };
 
