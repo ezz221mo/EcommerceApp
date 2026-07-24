@@ -17,9 +17,9 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
 
   const { addItem, isInCart }        = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
-  const { currentUser, userData }    = useAuth();
+  const { currentUser, userData, isStoreOwner }    = useAuth();
 
-  const isSeller   = userData?.role === 'seller';
+  const isSeller   = userData?.role === 'seller' || isStoreOwner;
   const inCart     = isInCart(product.id);
   const wishlisted = isWishlisted(product.id);
 
@@ -68,17 +68,14 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 80, damping: 13, delay: index * 0.04 }}
-        whileHover={{ y: -6 }}
+        transition={{ duration: 0.25, delay: index * 0.03 }}
+        whileHover={{ y: -4 }}
         className="group"
       >
         <Link to={`/products/${product.id}`} className="block">
-          <motion.div
-            whileHover={{ boxShadow: '0 20px 50px rgba(0,0,0,0.12)' }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="card overflow-hidden hover:shadow-xl hover:shadow-stone-200/60 dark:hover:shadow-stone-900/60 transition-shadow duration-300"
+          <div className="card overflow-hidden hover:shadow-xl hover:shadow-stone-200/60 dark:hover:shadow-stone-900/60 transition-all duration-300 hover:-translate-y-1"
           >
             {/* Image */}
             <div className="relative overflow-hidden bg-stone-100 dark:bg-stone-800 aspect-square">
@@ -262,8 +259,8 @@ const ProductCard = memo(function ProductCard({ product, index = 0 }) {
               )}
             </div>
           </div>
-        </motion.div>
-      </Link>
+          </div>
+        </Link>
 
       <QuickViewModal product={product} isOpen={showQuickView} onClose={() => setShowQuickView(false)} />
     </motion.div>

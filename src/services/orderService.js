@@ -177,13 +177,13 @@ export const createOrder = async ({
       if (assigned) {
         console.log('[createOrder] Delivery auto-assigned successfully to:', assigned.name);
       } else {
-        console.log('[createOrder] No matching delivery for', governorate, '- setting to Processing');
+        console.log('[createOrder] No matching delivery for', governorate, '- keeping as Pending');
         try {
           await updateDoc(doc(db, 'orders', docRef.id), {
-            orderStatus: 'Processing',
+            orderStatus: 'Pending',
             updatedAt: serverTimestamp(),
           });
-          console.log('[createOrder] Order status set to Processing');
+          console.log('[createOrder] Order status set to Pending');
         } catch (updateErr) {
           console.error('[createOrder] Failed to set Processing status:', updateErr?.code, updateErr?.message, updateErr);
         }
@@ -192,7 +192,7 @@ export const createOrder = async ({
       console.error('[createOrder] Delivery auto-assignment threw:', deliveryErr?.code, deliveryErr?.message, deliveryErr);
       try {
         await updateDoc(doc(db, 'orders', docRef.id), {
-          orderStatus: 'Processing',
+          orderStatus: 'Pending',
           updatedAt: serverTimestamp(),
         });
       } catch { /* ignore */ }

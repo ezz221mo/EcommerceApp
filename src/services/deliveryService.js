@@ -112,12 +112,10 @@ export async function assignDeliveryOrder(orderId, governorate) {
     }
     return null;
   }
-  accounts.sort((a, b) => {
-    if (!a.lastAssignedAt) return -1;
-    if (!b.lastAssignedAt) return 1;
-    return new Date(a.lastAssignedAt) - new Date(b.lastAssignedAt);
-  });
-  const chosen = accounts[0];
+  // Round-robin: pick deterministically based on orderId hash
+  // This avoids relying on lastAssignedAt which can't always be updated
+  const hash = orderId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const chosen = accounts[hash % accounts.length];
   console.log('[assignDeliveryOrder] Chosen delivery:', chosen?.name, chosen?.uid || chosen?.id);
   const now = new Date().toISOString();
   const assignedTo = chosen.uid || chosen.id;
@@ -131,7 +129,6 @@ export async function assignDeliveryOrder(orderId, governorate) {
       'delivery.deliveryStatus': 'assigned',
       'delivery.assignedAt': now, 'delivery.updatedAt': now,
       'delivery.returnReason': null,
-      orderStatus: 'AssignedToDelivery',
       updatedAt: serverTimestamp(),
     });
     console.log('[assignDeliveryOrder] Order', orderId, 'assigned to', chosen.name, '(uid:', assignedTo, ')');
@@ -174,7 +171,7 @@ export async function updateDeliveryStatus(orderId, deliveryStatus, note) {
     updatedAt: serverTimestamp(),
   };
   const statusOrderMap = {
-    assigned: 'AssignedToDelivery', picked_up: 'Shipped',
+    confirmed: 'Confirmed',
     out_for_delivery: 'OutForDelivery', delivered: 'Delivered',
     delivery_failed: 'DeliveryFailed', customer_not_available: 'CustomerNotAvailable',
     returned: 'Returned',

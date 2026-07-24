@@ -97,11 +97,7 @@ export default function Navbar() {
 
   if (isDelivery) {
     return (
-      <motion.nav
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-stone-950/80 backdrop-blur-xl shadow-lg border-b border-stone-100/50 dark:border-stone-800/50"
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-stone-950/80 backdrop-blur-xl shadow-lg border-b border-stone-100/50 dark:border-stone-800/50"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -122,17 +118,13 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-      </motion.nav>
+      </nav>
     );
   }
 
   return (
     <>
-      <motion.nav
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${navStyle}`}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navStyle}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
@@ -228,7 +220,7 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {isAuthenticated && (
+              {isAuthenticated && !isStoreOwner && (
                 <>
                   <Link to="/wishlist" className={`relative p-2 rounded-xl hidden sm:flex transition-all duration-200 ${darkText ? 'text-stone-600 hover:text-orange-600 hover:bg-orange-50 dark:text-stone-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/20' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                     <HiOutlineHeart className="w-5 h-5" />
@@ -313,12 +305,6 @@ export default function Navbar() {
                             <Link to="/orders/my-orders" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                               <HiOutlineShoppingCart className="w-4 h-4 text-stone-400" /> My Orders
                             </Link>
-                            <Link to="/wishlist" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-                              <HiOutlineHeart className="w-4 h-4 text-stone-400" /> Wishlist
-                            </Link>
-                            <Link to="/create-set" className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-                              <HiOutlineTemplate className="w-4 h-4 text-stone-400" /> Create Set
-                            </Link>
                           </>
                         )}
                       </div>
@@ -347,7 +333,7 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-      </motion.nav>
+      </nav>
 
       {/* Mobile Drawer */}
       <AnimatePresence>
@@ -437,9 +423,11 @@ export default function Navbar() {
                           <Link to="/wishlist" onClick={() => setMobileOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium"
                           ><HiOutlineHeart className="w-5 h-5" /> Wishlist</Link>
-                          <Link to="/create-set" onClick={() => setMobileOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium"
-                          ><HiOutlineTemplate className="w-5 h-5" /> Create Set</Link>
+                          {!isStoreOwner && (
+                            <Link to="/create-set" onClick={() => setMobileOpen(false)}
+                              className="flex items-center gap-3 px-4 py-3 rounded-xl text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-medium"
+                            ><HiOutlineTemplate className="w-5 h-5" /> Create Set</Link>
+                          )}
                         </>
                       )}
                     </>

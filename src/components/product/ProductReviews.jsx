@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiStar, HiOutlineTrash, HiOutlineDotsVertical } from 'react-icons/hi';
+import { HiStar, HiOutlineDotsVertical } from 'react-icons/hi';
 import { useAuth } from '../../hooks/useAuth';
 import { useProductStore } from '../../store';
 import { setReview, getReviewsByProduct, getUserReview, deleteUserReview } from '../../services/reviewService';
@@ -53,7 +53,6 @@ export default function ProductReviews({ product }) {
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [menuReviewId, setMenuReviewId] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -149,7 +148,6 @@ export default function ProductReviews({ product }) {
       });
       setReviews(sorted);
       setUserReview(myReview);
-      setEditing(false);
       setEditModalOpen(false);
       toast.success('Review submitted', { style: { borderRadius: '12px' } });
     } catch {
@@ -166,30 +164,10 @@ export default function ProductReviews({ product }) {
       setUserReview(null);
       setRating(0);
       setComment('');
-      setEditing(false);
       toast.success('Review deleted', { style: { borderRadius: '12px' } });
     } catch {
       toast.error('Failed to delete review', { style: { borderRadius: '12px' } });
     }
-  };
-
-  const handleEdit = () => {
-    if (userReview) {
-      setRating(userReview.rating);
-      setComment(userReview.comment || '');
-      setEditing(true);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    if (userReview) {
-      setRating(userReview.rating);
-      setComment(userReview.comment || '');
-    } else {
-      setRating(0);
-      setComment('');
-    }
-    setEditing(false);
   };
 
   if (loading) {
@@ -260,9 +238,9 @@ export default function ProductReviews({ product }) {
           {isReviewer && (
             <div className="card p-5">
               <h4 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">
-                {editing ? 'Edit Your Review' : userReview ? 'Your Review' : 'Write a Review'}
+                {userReview ? 'Your Review' : 'Write a Review'}
               </h4>
-              {editing || !userReview ? (
+              {!userReview ? (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <StarInput
                     value={rating}
@@ -286,38 +264,15 @@ export default function ProductReviews({ product }) {
                       disabled={rating === 0 || submitting}
                       className="btn-primary text-sm"
                     >
-                      {submitting ? 'Submitting...' : editing ? 'Update Review' : 'Submit Review'}
+                      {submitting ? 'Submitting...' : 'Submit Review'}
                     </button>
-                    {editing && (
-                      <button
-                        type="button"
-                        onClick={handleCancelEdit}
-                        className="text-sm text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    )}
                   </div>
                 </form>
               ) : (
-                <div className="flex items-center justify-between">
+                <div>
                   <p className="text-sm text-stone-500 dark:text-stone-400">
-                    You have reviewed this product.
+                    You have reviewed this product. Use the <span className="font-semibold">&middot;&middot;&middot;</span> menu to edit or delete.
                   </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleEdit}
-                      className="text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      className="text-sm text-rose-500 hover:text-rose-600 font-semibold transition-colors"
-                    >
-                      <HiOutlineTrash className="w-4 h-4" />
-                    </button>
-                  </div>
                 </div>
               )}
             </div>

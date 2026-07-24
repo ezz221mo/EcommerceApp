@@ -1,7 +1,6 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { HiOutlineSparkles, HiOutlinePlus, HiOutlineTrash, HiOutlineArrowLeft } from 'react-icons/hi';
+import { HiOutlineSparkles, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi';
 import useCreateSet from '../hooks/useCreateSet';
 import { useProductStore } from '../store';
 
@@ -29,17 +28,9 @@ export default function CreateSetPage() {
     <div className="min-h-screen pt-20 bg-stone-50 dark:bg-stone-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={spring} className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={() => navigate(-1)}
-              className="p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-            >
-              <HiOutlineArrowLeft className="w-5 h-5" />
-            </motion.button>
-            <div>
-              <h1 className="font-display text-4xl font-bold text-stone-900 dark:text-stone-100">Create Your Set</h1>
-              <p className="text-stone-500 dark:text-stone-400 mt-1">Manage your custom bundles</p>
-            </div>
+          <div>
+            <h1 className="font-display text-4xl font-bold text-stone-900 dark:text-stone-100">Create Your Set</h1>
+            <p className="text-stone-500 dark:text-stone-400 mt-1">Manage your custom bundles</p>
           </div>
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
             onClick={handleCreateNew}
@@ -117,19 +108,6 @@ export default function CreateSetPage() {
                 </motion.div>
               );
             })}
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: sets.length * 0.05 }}
-              whileHover={{ y: -4, borderColor: '#a855f7' }}
-              onClick={handleCreateNew}
-              className="card p-5 border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-2xl flex flex-col items-center justify-center gap-2 text-stone-400 hover:text-purple-500 hover:border-purple-400 dark:hover:border-purple-500 transition-all cursor-pointer min-h-[180px]"
-            >
-              <div className="w-14 h-14 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
-                <HiOutlinePlus className="w-7 h-7" />
-              </div>
-              <span className="text-sm font-semibold">Create New Set</span>
-            </motion.button>
           </div>
         )}
       </div>

@@ -830,14 +830,10 @@ export default function SellerDashboardPage() {
 
   const nextOrderStatuses = {
     Pending:              ['Confirmed', 'Cancelled'],
-    Processing:           ['Confirmed', 'Cancelled'],
-    Confirmed:            ['Preparing', 'Cancelled'],
-    Preparing:            ['Shipped', 'Cancelled'],
-    Shipped:              ['OutForDelivery', 'Cancelled'],
+    Confirmed:            ['OutForDelivery', 'Cancelled'],
     OutForDelivery:       ['Delivered', 'Cancelled'],
     Delivered:            [],
     Cancelled:            [],
-    AssignedToDelivery:   [],
     DeliveryFailed:       [],
     CustomerNotAvailable: [],
     Returned:             [],
@@ -1433,8 +1429,8 @@ export default function SellerDashboardPage() {
                           ))}
                         </div>
 
-                        {/* Status Actions */}
-                        {nextActions.length > 0 && (
+                        {/* Status Actions — hidden when a delivery is assigned */}
+                        {!order.delivery?.assignedTo && nextActions.length > 0 && (
                           <div className="flex items-center gap-2 flex-wrap pt-3 border-t border-stone-100 dark:border-stone-800">
                             {nextActions.map(action => (
                               <motion.button

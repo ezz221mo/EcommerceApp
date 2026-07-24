@@ -12,7 +12,7 @@ import { getDeliveryOrders, updateDeliveryStatus } from '../services/deliverySer
 
 const DELIVERY_STATUS_FLOW = [
   { key: 'assigned', label: 'Assigned' },
-  { key: 'picked_up', label: 'Picked Up' },
+  { key: 'confirmed', label: 'Confirm Order' },
   { key: 'out_for_delivery', label: 'Out For Delivery' },
   { key: 'delivered', label: 'Delivered' },
 ];
@@ -42,7 +42,7 @@ const statusStyle = {
 
 const statusLabel = {
   assigned: 'Assigned',
-  picked_up: 'Picked Up',
+  confirmed: 'Confirmed',
   out_for_delivery: 'Out For Delivery',
   delivered: 'Delivered',
   delivery_failed: 'Delivery Failed',

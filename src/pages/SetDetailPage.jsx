@@ -21,7 +21,7 @@ function calcDiscount(count) {
 export default function SetDetailPage() {
   const { setId } = useParams(); // التقاط الـ ID من الرابط
   const navigate = useNavigate();
-  const { sets, loaded, addProduct, removeProduct, clearSet, createNewSet } = useCreateSet();
+  const { sets, loaded, addProduct, removeProduct, clearSet } = useCreateSet();
   const allProducts = useProductStore(s => s.products);
   const addItem = useCartStore(s => s.addItem);
 
@@ -110,14 +110,9 @@ export default function SetDetailPage() {
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {count > 0 && (
-              <button onClick={() => clearSet(setId)} className="btn-secondary text-sm"><HiOutlineX className="w-4 h-4" /> Clear</button>
-            )}
-            <button onClick={() => { const newId = createNewSet(); navigate(`/create-set/${newId}`); }} className="btn-secondary text-sm">
-              <HiOutlinePlus className="w-4 h-4" /> New Set
-            </button>
-          </div>
+          {count > 0 && (
+            <button onClick={() => clearSet(setId)} className="btn-secondary text-sm"><HiOutlineX className="w-4 h-4" /> Clear</button>
+          )}
         </motion.div>
 
         {count === 0 ? (

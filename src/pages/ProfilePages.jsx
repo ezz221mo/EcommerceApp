@@ -291,11 +291,11 @@ export function ProfilePage() {
 // ─────────────────────────────────────────────────────────────────────────────
 // ORDER STATUS TRACKING TIMELINE
 // ─────────────────────────────────────────────────────────────────────────────
-const ORDER_STATUS_FLOW = ['Pending', 'Confirmed', 'Preparing', 'Shipped', 'OutForDelivery', 'Delivered'];
+const ORDER_STATUS_FLOW = ['Pending', 'Confirmed', 'OutForDelivery', 'Delivered'];
 
 const deliveryStatusLabel = {
   assigned: 'Assigned To Delivery',
-  picked_up: 'Picked Up',
+  confirmed: 'Confirmed',
   out_for_delivery: 'Out For Delivery',
   delivered: 'Delivered',
   delivery_failed: 'Delivery Failed',
@@ -379,7 +379,7 @@ function DeliveryTimeline({ entries }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function OrdersPage() {
   const { currentUser, userData } = useAuth();
-  const { getOrdersByBuyer, confirmDelivery, fetchUserOrders, loading } = useOrderStore();
+  const { getOrdersByBuyer, fetchUserOrders, loading } = useOrderStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -407,20 +407,6 @@ export function OrdersPage() {
   }
 
   const orders = getOrdersByBuyer(userData?.uid || userData?.id);
-
-  const handleConfirmDelivery = async (orderId) => {
-    try {
-      await confirmDelivery(orderId);
-      toast.success('Delivery confirmed! Payment released to seller.', {
-        icon: '\u2705',
-        style: { borderRadius: '12px', fontFamily: 'DM Sans, sans-serif' },
-      });
-    } catch {
-      toast.error('Failed to confirm delivery. Please try again.', {
-        style: { borderRadius: '12px' },
-      });
-    }
-  };
 
   const statusStyle = {
     Pending:              'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
@@ -613,18 +599,6 @@ export function OrdersPage() {
                   </div>
                 )}
 
-                {/* Actions */}
-                {orderStatus === 'OutForDelivery' && (
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => handleConfirmDelivery(order.id)}
-                    className="btn-primary text-sm py-2.5 px-5"
-                  >
-                    <HiOutlineCheck className="w-4 h-4" />
-                    Confirm Delivery
-                  </motion.button>
-                )}
                 {orderStatus === 'Delivered' && (
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-semibold">
                     <HiOutlineCheck className="w-4 h-4" />

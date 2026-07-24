@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
@@ -27,9 +28,9 @@ import SetDetailPage from './pages/SetDetailPage';
 import ComplaintsPage from './pages/ComplaintsPage';
 
 const pageVariants = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
-  exit:    { opacity: 0, y: -8, transition: { duration: 0.15 } },
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.2 } },
+  exit:    { opacity: 0, transition: { duration: 0.1 } },
 };
 
 const PageWrapper = ({ children }) => (
@@ -58,8 +59,8 @@ function AppRoutes() {
 
         <Route path="/outfit" element={<PageWrapper><OutfitPage /></PageWrapper>} />
         
-        <Route path="/create-set" element={<ProtectedRoute><PageWrapper><CreateSetPage /></PageWrapper></ProtectedRoute>} />
-        <Route path="/create-set/:setId" element={<ProtectedRoute><PageWrapper><SetDetailPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/create-set" element={<ProtectedRoute excludeStoreOwner={true}><PageWrapper><CreateSetPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/create-set/:setId" element={<ProtectedRoute excludeStoreOwner={true}><PageWrapper><SetDetailPage /></PageWrapper></ProtectedRoute>} />
 
         <Route path="/cart" element={
           <ProtectedRoute excludeStoreOwner={true}><PageWrapper><CartPage /></PageWrapper></ProtectedRoute>
@@ -126,7 +127,15 @@ function AppRoutes() {
 
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isDelivery, loading } = useAuth();
   const isFullPage = ['/login', '/register'].includes(location.pathname);
+
+  useEffect(() => {
+    if (!loading && isDelivery && location.pathname !== '/dashboard/delivery') {
+      navigate('/dashboard/delivery', { replace: true });
+    }
+  }, [isDelivery, loading, location.pathname, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-stone-950">
