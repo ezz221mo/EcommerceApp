@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -11,14 +11,18 @@ const firebaseConfig = {
   appId: "1:770501969491:web:0b5a0bbc91f75cfcfd28a6"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Secondary app instance for admin operations (creating delivery users)
-// This prevents createUserWithEmailAndPassword from hijacking the main auth session
-const adminApp = initializeApp(firebaseConfig, 'admin');
+// Secondary app instance for admin operations
+let adminApp;
+if (!getApps().some(a => a.name === 'admin')) {
+  adminApp = initializeApp(firebaseConfig, 'admin');
+} else {
+  adminApp = getApps().find(a => a.name === 'admin');
+}
 export const adminAuth = getAuth(adminApp);
 
 export default app;
