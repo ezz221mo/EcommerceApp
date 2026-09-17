@@ -117,7 +117,7 @@ export const createOrder = async ({
 
   // ── 3. Debug log the clean payload (dev only) ───────────────────────────
   if (import.meta.env.DEV) {
-    const { createdAt, updatedAt, ...logSafe } = orderPayload;
+    const { ...logSafe } = orderPayload;
     console.log('[orderService] createOrder payload:', logSafe);
   }
 

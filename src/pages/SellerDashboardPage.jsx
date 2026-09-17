@@ -6,7 +6,7 @@ import {
   HiOutlineChartBar, HiOutlineCurrencyDollar,
   HiOutlineTrash, HiOutlineEye, HiOutlineEyeOff, HiOutlineX, HiOutlinePhotograph,
   HiOutlineUpload, HiOutlineTag, HiOutlinePencil, HiOutlineCollection,
-  HiOutlineBookmarkAlt, HiOutlineChevronDown, HiOutlineTruck,
+  HiOutlineCheck, HiOutlineTruck,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useProductStore, useOrderStore, useCategoryStore } from '../store';
@@ -733,14 +733,6 @@ export default function SellerDashboardPage() {
       loadDeliveryAccounts();
     } catch { toast.error('Failed to update status'); }
   };
-
-  // ── Delivery info helper ──
-  const deliveryZones = [
-    'Cairo', 'Alexandria', 'Giza', 'Shubra El-Kheima', 'Port Said', 'Suez',
-    'Luxor', 'Mansoura', 'El-Mahalla El-Kubra', 'Tanta', 'Asyut', 'Ismailia',
-    'Fayyum', 'Zagazig', 'Damietta', 'Aswan', 'Minya', 'Beni Suef',
-    'Qena', 'Sohag', 'Hurghada', '6th of October', 'Sheikh Zayed',
-  ];
 
   const handleDelete = async (id) => {
     await deleteProduct(id);

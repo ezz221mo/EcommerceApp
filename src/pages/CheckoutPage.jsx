@@ -73,7 +73,7 @@ function validateEmail(email) {
 
 function validatePhone(phone) {
   if (!phone || !phone.trim()) return null;
-  const clean = phone.replace(/[\s\-\(\)\+]/g, '');
+  const clean = phone.replace(/[\s\-()+]/g, '');
   if (!/^\d+$/.test(clean)) return 'Phone must contain only numbers.';
   if (clean.length < 7 || clean.length > 15) return 'Please enter a valid phone number.';
   return null;
@@ -719,7 +719,7 @@ export default function CheckoutPage() {
                     <h2 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100">Order Items</h2>
                   </div>
                   <div className="space-y-4">
-                    {items.map((item, i) => (
+                    {items.map((item) => (
                       <div key={item.id} className="flex items-center gap-4 pb-4 border-b border-stone-100 dark:border-stone-800 last:border-0 last:pb-0">
                         <div className="w-16 h-16 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800 flex-shrink-0">
                           <img src={item.image} alt={item.name} className="w-full h-full object-cover" />

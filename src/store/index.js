@@ -10,7 +10,7 @@ let _currentCartOwner = null;
 function saveToLocalStorage(uid, items, coupon) {
   try {
     localStorage.setItem(`luxe-cart-${uid}`, JSON.stringify({ items, coupon }));
-  } catch (e) { /* quota exceeded etc. */ }
+  } catch { /* quota exceeded etc. */ }
 }
 
 export async function loadCart(uid) {
@@ -37,7 +37,7 @@ export async function loadCart(uid) {
       console.log('[store] loadCart() loaded', parsed.items?.length, 'items from localStorage');
       return;
     }
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
   useCartStore.setState({ items: [], coupon: null });
 }
 
@@ -249,8 +249,8 @@ export const useThemeStore = create(
 );
 
 // Clear old localStorage caches (migrated to Firestore)
-try { localStorage.removeItem('luxe-orders'); } catch {}
-try { localStorage.removeItem('luxe-products'); } catch {}
+try { localStorage.removeItem('luxe-orders'); } catch { /* noop */ }
+try { localStorage.removeItem('luxe-products'); } catch { /* noop */ }
 
 // ── Order Store ───────────────────────────────────────────────────────────────
 /*

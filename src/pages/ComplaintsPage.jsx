@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { HiOutlineChatAlt2, HiOutlinePhone, HiOutlineMail, HiOutlineClipboardList, HiOutlineExclamationCircle } from 'react-icons/hi';
+import { HiOutlineChatAlt2 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 

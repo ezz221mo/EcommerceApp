@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { HiOutlineX } from 'react-icons/hi';
-import { categories } from '../../data/products';
+import { useCategoryStore } from '../../store';
 
 const priceRanges = [
   { label: 'Under $50',    min: 0,   max: 50       },
@@ -24,6 +24,18 @@ export default function ProductSidebar({
   products, hasFilters, clearFilters,
   availableFilters,
 }) {
+  const { categories: storeCategories } = useCategoryStore();
+
+  const categoryFilters = [
+    { id: '', label: 'All Products', icon: null, count: products.length },
+    ...storeCategories.map(cat => ({
+      id: cat.slug,
+      label: cat.name,
+      icon: null,
+      count: products.filter(p => p.category === cat.slug).length,
+    })),
+  ];
+
   return (
     <div className="space-y-8">
       {/* Categories */}
@@ -33,15 +45,7 @@ export default function ProductSidebar({
           Categories
         </h3>
         <div className="space-y-1">
-          {[
-            { id: '', label: 'All Products', icon: null, count: products.length },
-            ...categories.map(cat => ({
-              id: cat.id,
-              label: cat.name,
-              icon: cat.icon,
-              count: products.filter(p => p.category === cat.id).length,
-            })),
-          ].map((cat, i) => {
+          {categoryFilters.map((cat, i) => {
             const isActive = selectedCat === cat.id;
             return (
               <motion.button

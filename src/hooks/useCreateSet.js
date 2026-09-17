@@ -47,16 +47,11 @@ export default function useCreateSet() {
           const parsed = docs.map(d => ({
             id: d.id,
             category: d.category || null,
-            productIds: d.productIds || d.products || [], // الحفاظ على التوافق مع الكود القديم
+            productIds: d.productIds || d.products || [],
             createdAt: d.createdAt || Date.now(),
             updatedAt: d.updatedAt || Date.now(),
           }));
           setSets(parsed);
-        } else {
-          try {
-            const localSets = localStorage.getItem('luxe-custom-sets-v2');
-            if (localSets) setSets(JSON.parse(localSets));
-          } catch {}
         }
       } catch (e) {
         if (!cancelled) setLoadingError(e);
@@ -77,7 +72,7 @@ export default function useCreateSet() {
 
     try {
       localStorage.setItem('luxe-custom-sets-v2', JSON.stringify(sets));
-    } catch {}
+    } catch { /* noop */ }
 
     if (!currentUser) return;
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineShoppingBag, HiOutlineUser, HiOutlinePhone,
-  HiOutlineLocationMarker, HiOutlineTruck, HiOutlineCheck,
+  HiOutlineLocationMarker, HiOutlineTruck,
   HiOutlineX, HiOutlineExclamationCircle, HiOutlineClock,
   HiOutlinePhotograph, HiOutlineArrowRight,
 } from 'react-icons/hi';
@@ -140,12 +140,6 @@ export default function DeliveryDashboardPage() {
     }
   };
 
-  const visibleStatuses = (deliveryStatus) => {
-    const idx = DELIVERY_STATUS_FLOW.findIndex(s => s.key === deliveryStatus);
-    if (idx === -1) return [{ key: deliveryStatus, label: statusLabel[deliveryStatus] || deliveryStatus }];
-    return DELIVERY_STATUS_FLOW.slice(0, idx + 1);
-  };
-
   const getNextStatuses = (deliveryStatus) => {
     const idx = DELIVERY_STATUS_FLOW.findIndex(s => s.key === deliveryStatus);
     if (idx === -1 || idx >= DELIVERY_STATUS_FLOW.length - 1) return [];
@@ -186,8 +180,6 @@ export default function DeliveryDashboardPage() {
             {orders.map((order, i) => {
               const dStatus = currentStatus(order);
               const nextActions = getNextStatuses(dStatus);
-              const completed = dStatus === 'delivered' || dStatus === 'delivery_failed' || dStatus === 'customer_not_available';
-              const canReturn = !completed && dStatus !== 'returned' && dStatus !== 'unassigned';
               return (
                 <motion.div
                   key={order.id}
@@ -287,7 +279,7 @@ export default function DeliveryDashboardPage() {
                         {action.label}
                       </motion.button>
                     ))}
-                    {!completed && dStatus !== 'delivered' && dStatus !== 'returned' && dStatus !== 'unassigned' && (
+                    {dStatus !== 'delivered' && dStatus !== 'returned' && dStatus !== 'unassigned' && (
                       <>
                         {FAILURE_STATUSES.map(fs => (
                           <motion.button

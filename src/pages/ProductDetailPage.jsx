@@ -29,7 +29,7 @@ export default function ProductDetailPage() {
   const [selectedSize,  setSelectedSize]  = useState(0);
   const [activeTab, setActiveTab] = useState('description');
 
-  const { addItem, removeItem, updateQuantity, isInCart } = useCartStore();
+  const { addItem, removeItem, isInCart } = useCartStore();
   const { toggleItem, isWishlisted }          = useWishlistStore();
   const { currentUser, userData, isStoreOwner } = useAuth();
 

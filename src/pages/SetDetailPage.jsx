@@ -46,7 +46,6 @@ export default function SetDetailPage() {
   const discountPct = calcDiscount(count);
   const discountAmount = +(originalTotal * (discountPct / 100)).toFixed(2);
   const finalTotal = +(originalTotal - discountAmount).toFixed(2);
-  const nextTier = TIERS.find(t => count < t.min);
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -135,7 +134,7 @@ export default function SetDetailPage() {
             <div className="overflow-x-auto pb-4 mb-8">
               <div className="flex gap-4 min-w-max">
                 <AnimatePresence>
-                  {populatedProducts.map((product, i) => (
+                  {populatedProducts.map((product) => (
                     <motion.div key={product.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} className="card p-4 w-52 flex-shrink-0">
                       <div className="relative mb-3 aspect-square rounded-xl overflow-hidden bg-stone-100">
                         {product.image && <img src={product.image} className="w-full h-full object-cover" />}

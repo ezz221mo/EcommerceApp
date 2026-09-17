@@ -1,6 +1,6 @@
 import {
   doc, collection, getDoc, getDocs, updateDoc, deleteDoc, setDoc,
-  query, where, orderBy, serverTimestamp,
+  query, where, serverTimestamp,
 } from 'firebase/firestore';
 import { db, adminAuth, auth } from '../firebase/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -42,7 +42,7 @@ export async function createDeliveryAccount({ name, email, password, phone, zone
   }
 }
 
-export async function updateDeliveryAccount(uid, { name, phone, zones, status, password }) {
+export async function updateDeliveryAccount(uid, { name, phone, zones, status }) {
   const updates = { updatedAt: serverTimestamp() };
   if (name !== undefined) updates.name = name;
   if (phone !== undefined) updates.phone = phone;

@@ -15,7 +15,7 @@ function loadLocal() {
 function saveLocal(items) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(items));
-  } catch {}
+  } catch { /* noop */ }
 }
 
 export default function useRecentlyViewed() {

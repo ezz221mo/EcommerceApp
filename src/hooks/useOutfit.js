@@ -20,7 +20,7 @@ function loadLocal() {
 function saveLocal(outfit) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(outfit));
-  } catch {}
+  } catch { /* noop */ }
 }
 
 export default function useOutfit() {
@@ -56,6 +56,8 @@ export default function useOutfit() {
 
   useEffect(() => {
     if (!loaded) return;
+    const hasData = Object.values(saveRef.current).some(v => v !== null);
+    if (!hasData) return;
     const timer = setTimeout(() => {
       if (currentUser) {
         saveUserSubData(currentUser.uid, 'outfits', 'current', saveRef.current).catch(() => {});

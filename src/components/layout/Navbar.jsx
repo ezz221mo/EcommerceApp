@@ -9,8 +9,6 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useCartStore, useWishlistStore, useThemeStore, useProductStore, useCategoryStore } from '../../store';
 
-const spring = { type: 'spring', stiffness: 300, damping: 30 };
-
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);

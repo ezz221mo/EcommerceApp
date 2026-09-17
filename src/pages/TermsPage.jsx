@@ -2,27 +2,21 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 
-function Section({ title, children, index = 0 }) {
+function Section({ title, children }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
 
   return (
-    <motion.section
+    <section
       ref={ref}
-      initial={{ opacity: 0, x: -20 }}
-      animate={isInView ? { opacity: 1, x: 0 } : {}}
-      transition={{ type: 'spring', stiffness: 80, damping: 14, delay: index * 0.07 }}
-      className="relative pl-6 border-l-2 border-stone-200 dark:border-stone-800"
+      className={`relative pl-6 border-l-2 border-stone-200 dark:border-stone-800 transition-opacity duration-300 ${isInView ? 'opacity-100' : 'opacity-0'}`}
     >
-      <motion.div
-        initial={{ scaleY: 0 }}
-        animate={isInView ? { scaleY: 1 } : {}}
-        transition={{ delay: index * 0.07 + 0.15, duration: 0.4 }}
-        className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-orange-500 to-teal-500 origin-top"
+      <div
+        className={`absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-orange-500 to-teal-500 origin-top transition-transform duration-500 ${isInView ? 'scale-y-100' : 'scale-y-0'}`}
       />
       <h2 className="font-display text-2xl font-bold text-stone-900 dark:text-stone-100 mb-3">{title}</h2>
       {children}
-    </motion.section>
+    </section>
   );
 }
 
@@ -35,26 +29,16 @@ export default function TermsPage() {
     <div className="min-h-screen pt-20 bg-stone-50 dark:bg-stone-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 80, damping: 14 }}
+          transition={{ duration: 0.3 }}
         >
-          <motion.h1
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 100, damping: 12, delay: 0.1 }}
-            className="font-display text-4xl sm:text-5xl font-bold text-stone-900 dark:text-stone-100 mb-2"
-          >
+          <h1 className="font-display text-4xl sm:text-5xl font-bold text-stone-900 dark:text-stone-100 mb-2">
             Terms &amp; Conditions
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-stone-500 dark:text-stone-400 mb-12"
-          >
+          </h1>
+          <p className="text-stone-500 dark:text-stone-400 mb-12">
             Last updated: June 2025
-          </motion.p>
+          </p>
 
           <div className="space-y-10 text-stone-600 dark:text-stone-300 leading-relaxed">
 
@@ -70,18 +54,14 @@ export default function TermsPage() {
                   'Maintain the confidentiality of your login credentials.',
                   'Notify us immediately of any unauthorized use of your account.',
                   'Be responsible for all activities that occur under your account.',
-                ].map((item, i) => (
-                  <motion.li
+                ].map((item) => (
+                  <li
                     key={item}
-                    initial={{ opacity: 0, x: -12 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.06 }}
                     className="flex items-start gap-2"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2.5 flex-shrink-0" />
                     {item}
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
               <p className="mt-3">We reserve the right to suspend or terminate accounts that violate these terms.</p>
@@ -94,18 +74,14 @@ export default function TermsPage() {
                   'Refuse or cancel any order at our discretion.',
                   'Limit or cancel quantities purchased per person or per order.',
                   'Require additional verification or information before processing.',
-                ].map((item, i) => (
-                  <motion.li
+                ].map((item) => (
+                  <li
                     key={item}
-                    initial={{ opacity: 0, x: -12 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.06 }}
                     className="flex items-start gap-2"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2.5 flex-shrink-0" />
                     {item}
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
               <p className="mt-3">In the event of a change or cancellation, we will notify you via the email associated with your account.</p>
@@ -122,18 +98,11 @@ export default function TermsPage() {
                   'Delays caused by shipping carriers or customs processing.',
                   'Incorrect addresses provided by the customer.',
                   'Lost or stolen packages after confirmed delivery.',
-                ].map((item, i) => (
-                  <motion.li
-                    key={item}
-                    initial={{ opacity: 0, x: -12 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.06 }}
-                    className="flex items-start gap-2"
-                  >
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2.5 flex-shrink-0" />
                     {item}
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
               <p className="mt-3">Shipping costs and estimated delivery times are displayed at checkout before you complete your purchase.</p>
@@ -146,18 +115,11 @@ export default function TermsPage() {
                   'Unused and in the original packaging.',
                   'Returned within 30 days of delivery.',
                   'Accompanied by proof of purchase.',
-                ].map((item, i) => (
-                  <motion.li
-                    key={item}
-                    initial={{ opacity: 0, x: -12 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.06 }}
-                    className="flex items-start gap-2"
-                  >
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2.5 flex-shrink-0" />
                     {item}
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
               <p className="mt-3">Refunds are processed within 5-7 business days after we receive the returned item. Shipping costs for returns are the responsibility of the customer unless the item is defective or incorrect. Custom or personalized items are non-returnable unless defective.</p>
@@ -176,18 +138,11 @@ export default function TermsPage() {
                   'Upload or transmit viruses, malware, or any harmful code.',
                   'Interfere with the proper functioning of the site or its associated services.',
                   'Impersonate any person or entity or misrepresent your affiliation.',
-                ].map((item, i) => (
-                  <motion.li
-                    key={item}
-                    initial={{ opacity: 0, x: -12 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.06 }}
-                    className="flex items-start gap-2"
-                  >
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2.5 flex-shrink-0" />
                     {item}
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
               <p className="mt-3">Violation of these responsibilities may result in immediate account termination.</p>
@@ -207,31 +162,15 @@ export default function TermsPage() {
 
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.97 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ type: 'spring', stiffness: 70, damping: 13, delay: 0.3 }}
-            className="mt-12 p-6 md:p-8 bg-gradient-to-br from-white to-stone-50 dark:from-stone-900 dark:to-stone-950 rounded-2xl border border-stone-100 dark:border-stone-800 text-center"
-          >
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.4 }}
-              className="text-stone-500 mb-4"
-            >
+          <div className="mt-12 p-6 md:p-8 bg-gradient-to-br from-white to-stone-50 dark:from-stone-900 dark:to-stone-950 rounded-2xl border border-stone-100 dark:border-stone-800 text-center">
+            <p className="text-stone-500 mb-4">
               Have questions about our terms?
-            </motion.p>
+            </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Link to="/contact" className="btn-secondary">Contact Us</Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Link to="/products" className="btn-primary">Back to Shopping</Link>
-              </motion.div>
+              <Link to="/contact" className="btn-secondary">Contact Us</Link>
+              <Link to="/products" className="btn-primary">Back to Shopping</Link>
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       </div>
     </div>

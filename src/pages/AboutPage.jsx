@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   HiOutlineShieldCheck, HiOutlineTruck, HiOutlineHeart, HiOutlineSparkles,
   HiOutlineGlobe, HiOutlineEye, HiOutlineSupport, HiOutlineCurrencyDollar,
-  HiStar, HiOutlineUserGroup,
+  HiStar,
 } from 'react-icons/hi';
 import { useProductStore } from '../store';
 
@@ -47,9 +47,6 @@ export default function AboutPage() {
     ? (products.reduce((s, p) => s + (p.rating || 0), 0) / products.length).toFixed(1)
     : '0.0';
 
-  const { scrollY } = useScroll();
-  const heroParallaxY = useTransform(scrollY, [0, 500], [0, 100]);
-
   useEffect(() => {
     document.title = 'About Us | LuxeShop';
   }, []);
@@ -58,20 +55,12 @@ export default function AboutPage() {
     <div className="min-h-screen pt-20 bg-stone-50 dark:bg-stone-950">
       {/* ── Hero Section ── */}
       <section className="relative min-h-[70vh] flex items-center overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950 text-white">
-        <motion.div style={{ y: heroParallaxY }} className="absolute inset-0">
+        <div className="absolute inset-0">
           <div className="absolute inset-0 bg-mesh opacity-40" />
           <div className="absolute inset-0 bg-grid opacity-30" />
-          <motion.div
-            animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.35, 0.2] }}
-            transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
-            className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[100px]"
-          />
-          <motion.div
-            animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0.3, 0.2] }}
-            transition={{ repeat: Infinity, duration: 10, ease: 'easeInOut', delay: 2 }}
-            className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-teal-500/10 rounded-full blur-[100px]"
-          />
-        </motion.div>
+          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[100px]" />
+          <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-teal-500/10 rounded-full blur-[100px]" />
+        </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
           <motion.div

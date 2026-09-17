@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   HiOutlineUser, HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker,
   HiOutlineShoppingBag, HiOutlineHeart, HiOutlineLogout,
   HiOutlinePencil, HiOutlineClipboardList, HiOutlineLockClosed,
   HiOutlineCheck, HiOutlineX, HiOutlineTruck, HiOutlineClock,
-  HiOutlineExclamationCircle,
 } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore, useWishlistStore, useOrderStore } from '../store';
@@ -303,7 +302,7 @@ const deliveryStatusLabel = {
   returned: 'Returned',
 };
 
-function OrderTimeline({ currentStatus, delivery }) {
+function OrderTimeline({ currentStatus }) {
   const status = currentStatus === 'Cancelled' ? null : currentStatus;
   const currentIdx = status ? ORDER_STATUS_FLOW.indexOf(status) : -1;
 
